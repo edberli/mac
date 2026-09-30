@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="zh-Hant-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Round Lab 白樺樹保濕面霜 優惠橫幅</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500&family=Noto+Sans+TC:wght@500;700;900&family=Noto+Serif+TC:wght@700;900&family=Zhi+Mang+Xing&family=Homemade+Apple&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0f2a5c;
+    --blue: #1a4a9a;
+    --cream: #fdeeb0;
+    --paper: #fff8e2;
+    --sky: #bfe0f8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #e9f2fb; display: grid; place-items: center; min-height: 100vh; padding: 16px; }
+
+  /* 舞台：以 1672 x 941 為設計稿，所有尺寸按比例縮放 */
+  .stage {
+    --u: calc(100cqw / 1672);
+    container-type: inline-size;
+    position: relative; overflow: hidden;
+    width: min(100%, 1672px); aspect-ratio: 1672 / 941;
+    background: linear-gradient(180deg, #bfe0f8 0%, #d6ecfb 55%, #e6f3fc 100%);
+    font-family: "Noto Sans TC", sans-serif; color: var(--navy);
+    border-radius: 12px;
+  }
+  .abs { position: absolute; }
+  svg.scene { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  /* 左上文字 */
+  .brand { left: calc(98*var(--u)); top: calc(56*var(--u)); font: 500 calc(24*var(--u))/1 "Jost", sans-serif; letter-spacing: .3em; display: flex; align-items: center; gap: calc(22*var(--u)); }
+  .brand::after { content: ""; width: calc(60*var(--u)); height: 2px; background: var(--navy); }
+  h1 { left: calc(96*var(--u)); top: calc(108*var(--u)); font: 900 calc(100*var(--u))/1.15 "Noto Serif TC", serif; letter-spacing: .04em; }
+  .sub-en { left: calc(98*var(--u)); top: calc(340*var(--u)); font: 400 calc(21*var(--u))/1 "Jost", sans-serif; letter-spacing: .22em; }
+  .tags { left: calc(98*var(--u)); top: calc(378*var(--u)); font: 500 calc(24*var(--u))/1 "Noto Sans TC", sans-serif; letter-spacing: .05em; }
+  .tags i { font-style: normal; margin: 0 calc(16*var(--u)); opacity: .6; }
+  .script { left: calc(96*var(--u)); top: calc(420*var(--u)); font: 400 calc(38*var(--u))/1.35 "Zhi Mang Xing", cursive; color: var(--blue); transform: rotate(-5deg); transform-origin: left top; }
+  .script span { display: block; padding-left: calc(60*var(--u)); }
+
+  /* 限時優惠卡 */
+  .promo { left: calc(60*var(--u)); top: calc(560*var(--u)); width: calc(602*var(--u)); height: calc(226*var(--u)); background: rgba(255,255,255,.72); border-radius: calc(28*var(--u)); backdrop-filter: blur(2px); }
+  .pill { position: absolute; left: calc(24*var(--u)); top: calc(-30*var(--u)); height: calc(64*var(--u)); padding: 0 calc(30*var(--u)) 0 calc(26*var(--u)); background: var(--cream); border-radius: 999px; display: flex; align-items: center; gap: calc(12*var(--u)); font: 900 calc(34*var(--u)) "Noto Sans TC"; }
+  .pill svg { width: calc(40*var(--u)); height: calc(40*var(--u)); }
+  .promo .line1 { position: absolute; left: calc(180*var(--u)); top: calc(52*var(--u)); font: 900 calc(44*var(--u))/1 "Noto Sans TC"; }
+  .brush { position: absolute; left: calc(90*var(--u)); top: calc(96*var(--u)); width: calc(540*var(--u)); height: calc(112*var(--u)); background: var(--navy); clip-path: polygon(0 12%, 4% 0, 30% 6%, 62% 0, 100% 8%, 97% 46%, 100% 92%, 66% 100%, 30% 94%, 3% 100%, 0 60%); }
+  .minus { position: absolute; left: calc(60*var(--u)); top: calc(102*var(--u)); width: calc(116*var(--u)); height: calc(116*var(--u)); border-radius: 50%; background: var(--cream); display: grid; place-items: center; font: 900 calc(72*var(--u)) "Noto Sans TC"; color: var(--navy); }
+  .amt { position: absolute; left: calc(196*var(--u)); top: calc(96*var(--u)); font: 900 calc(96*var(--u))/1.2 "Noto Sans TC"; color: var(--cream); letter-spacing: .01em; }
+  .spark { position: absolute; stroke: var(--blue); stroke-width: 5; stroke-linecap: round; }
+
+  /* CTA */
+  .cta { left: calc(80*var(--u)); top: calc(806*var(--u)); width: calc(336*var(--u)); height: calc(86*var(--u)); border-radius: 999px; background: #10459a; color: #fff; display: flex; align-items: center; justify-content: center; gap: calc(30*var(--u)); font: 700 calc(32*var(--u)) "Noto Sans TC"; text-decoration: none; transition: transform .15s, background .15s; box-shadow: 0 calc(8*var(--u)) calc(18*var(--u)) rgba(15,42,92,.25); }
+  .cta:hover { transform: translateY(-2px); background: #0b3679; }
+  .cta svg { width: calc(40*var(--u)); height: calc(28*var(--u)); }
+
+  /* 面霜瓶 */
+  .jar { left: calc(830*var(--u)); top: calc(430*var(--u)); width: calc(380*var(--u)); height: calc(380*var(--u)); }
+  .jar .lid { position: absolute; left: 0; top: 0; width: 100%; height: 42%; background: linear-gradient(90deg,#e9eef5,#fff 30%,#fff 70%,#dfe6f0); border-radius: calc(50*var(--u)) calc(50*var(--u)) calc(30*var(--u)) calc(30*var(--u)) / calc(40*var(--u)) calc(40*var(--u)) calc(30*var(--u)) calc(30*var(--u)); display: grid; place-items: center; }
+  .lid b { font: 700 calc(15*var(--u))/1.1 "Jost", sans-serif; letter-spacing: .25em; text-align: center; color: var(--navy); margin-top: calc(-20*var(--u)); }
+  .jar .body { position: absolute; left: calc(6*var(--u)); top: 34%; width: calc(368*var(--u)); height: 66%; background: linear-gradient(90deg,rgba(190,215,240,.85),rgba(255,255,255,.9) 25%,rgba(255,255,255,.95) 70%,rgba(190,215,240,.85)); border-radius: calc(20*var(--u)) calc(20*var(--u)) calc(60*var(--u)) calc(60*var(--u)) / calc(20*var(--u)) calc(20*var(--u)) calc(40*var(--u)) calc(40*var(--u)); border: 2px solid rgba(170,200,230,.8); overflow: hidden; }
+  .body .stripe { position: absolute; left: 0; right: 0; top: calc(20*var(--u)); height: calc(26*var(--u)); background: #123f96; }
+  .body .ko { position: absolute; left: 0; right: 0; top: calc(90*var(--u)); text-align: center; font: 500 calc(28*var(--u)) "Noto Sans TC"; color: #1b2a48; }
+  .body .hash { position: absolute; left: 0; right: 0; top: calc(140*var(--u)); text-align: center; font: 500 calc(15*var(--u)) "Noto Sans TC"; color: var(--blue); }
+  .body .pond { position: absolute; left: calc(-40*var(--u)); bottom: calc(-26*var(--u)); width: calc(250*var(--u)); height: calc(60*var(--u)); border-radius: 50%; background: #123f96; }
+  .body .bl { position: absolute; left: calc(-24*var(--u)); bottom: calc(24*var(--u)); width: calc(50*var(--u)); height: calc(30*var(--u)); border-radius: 50%; background: #123f96; }
+
+  /* 免費送氣泡 */
+  .free { right: calc(72*var(--u)); top: calc(58*var(--u)); padding: calc(10*var(--u)) calc(38*var(--u)); background: var(--cream); border-radius: 999px; font: 900 calc(46*var(--u)) "Noto Sans TC"; }
+  .bubble { left: calc(1115*var(--u)); top: calc(195*var(--u)); width: calc(430*var(--u)); height: calc(400*var(--u)); background: var(--cream); border-radius: 46% 54% 50% 50% / 48% 44% 56% 52%; }
+  .bubble .gift { position: absolute; left: calc(200*var(--u)); top: calc(30*var(--u)); width: calc(64*var(--u)); }
+  .bubble .thr { position: absolute; left: 0; right: 0; top: calc(108*var(--u)); text-align: center; font: 900 calc(48*var(--u)) "Noto Sans TC"; }
+  .bubble .song { position: absolute; left: calc(70*var(--u)); top: calc(178*var(--u)); width: calc(92*var(--u)); height: calc(92*var(--u)); border-radius: 50%; background: var(--navy); color: var(--cream); display: grid; place-items: center; font: 900 calc(54*var(--u)) "Noto Sans TC"; }
+  .bubble .name { position: absolute; left: calc(192*var(--u)); top: calc(170*var(--u)); font: 700 calc(32*var(--u))/1.35 "Noto Sans TC"; }
+  .bubble .name em { font-style: normal; font-weight: 500; font-size: calc(30*var(--u)); }
+  .bubble .arrow { position: absolute; left: calc(110*var(--u)); top: calc(300*var(--u)); width: calc(64*var(--u)); }
+
+  .good { right: calc(58*var(--u)); bottom: calc(96*var(--u)); font: 400 calc(44*var(--u))/1.15 "Homemade Apple", cursive; color: #fff; transform: rotate(-12deg); text-align: left; }
+  .good span:nth-child(2) { display: block; padding-left: calc(30*var(--u)); }
+  .good span:nth-child(3) { display: block; padding-left: calc(60*var(--u)); }
+</style>
+</head>
+<body>
+<section class="stage" aria-label="Round Lab 白樺樹保濕面霜優惠">
+
+  <!-- 背景場景：太陽、山、湖水、石台、樹木、葉子 -->
+  <svg class="scene" viewBox="0 0 1672 941" preserveAspectRatio="none" aria-hidden="true">
+    <defs>
+      <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#8ebff0"/><stop offset="1" stop-color="#5f9be0"/>
+      </linearGradient>
+    </defs>
+    <circle cx="832" cy="330" r="192" fill="#fff4d6"/>
+    <!-- 山 -->
+    <path d="M0 470 L200 400 L330 450 L480 380 L640 470 L760 380 L900 440 L1080 500 L1120 620 L0 620 Z" fill="#8bb4e6"/>
+    <path d="M300 610 L560 500 L760 430 L900 520 L1100 620 Z" fill="#6f9edb"/>
+    <path d="M0 520 L140 470 L300 540 L460 600 L0 640 Z" fill="#5c8ad0"/>
+    <!-- 湖水 -->
+    <rect y="600" width="1672" height="341" fill="url(#water)"/>
+    <g stroke="#e8f3ff" stroke-width="3" stroke-linecap="round" opacity=".7" fill="none">
+      <path d="M120 660 q40 -10 90 0"/><path d="M420 720 q60 -12 120 0"/><path d="M650 640 q40 -8 90 0"/>
+      <path d="M520 860 q70 -14 150 0"/><path d="M60 900 q60 -10 120 0"/><path d="M700 900 q60 -12 130 0"/>
+    </g>
+    <!-- 樹叢 -->
+    <path d="M700 610 q40 -60 80 -30 q30 -40 70 -10 q30 -20 50 30 L860 620 Z" fill="#4c7fc6" opacity=".9"/>
+    <!-- 石台 -->
+    <path d="M735 850 L790 770 L1210 760 L1360 800 L1420 860 L1300 920 L900 930 Z" fill="#a5b4cf"/>
+    <path d="M735 850 L790 770 L1210 760 L1360 800 L1300 830 L900 850 Z" fill="#c4cfe2"/>
+    <g fill="#8797b8" opacity=".6"><circle cx="1000" cy="880" r="4"/><circle cx="1120" cy="895" r="3"/><circle cx="880" cy="900" r="3"/><circle cx="1240" cy="870" r="4"/></g>
+    <!-- 白樺樹幹 -->
+    <path d="M1235 0 L1330 0 L1460 470 L1400 470 Z" fill="#f4f1ea"/>
+    <path d="M1420 0 L1560 0 L1600 620 L1490 620 Z" fill="#f8f5ee"/>
+    <path d="M1590 0 L1672 0 L1672 500 L1610 500 Z" fill="#efeae0"/>
+    <g fill="#1f3d78">
+      <ellipse cx="1505" cy="270" rx="18" ry="5"/><ellipse cx="1545" cy="360" rx="20" ry="6"/>
+      <ellipse cx="1560" cy="130" rx="18" ry="5"/><ellipse cx="1640" cy="240" rx="16" ry="5"/>
+      <ellipse cx="1365" cy="200" rx="14" ry="4"/><ellipse cx="1400" cy="360" rx="16" ry="5"/>
+    </g>
+    <!-- 葉子（右上） -->
+    <g fill="#1f4f9e">
+      <path d="M880 0 Q980 30 1010 110 Q930 100 880 0Z"/>
+      <path d="M1010 0 Q1110 20 1130 90 Q1050 90 1010 0Z" fill="#2a5faf"/>
+      <path d="M1150 0 Q1210 50 1200 140 Q1140 100 1150 0Z" fill="#163f85"/>
+      <path d="M1560 60 Q1640 40 1672 110 L1672 180 Q1600 170 1560 60Z" fill="#274f97"/>
+      <path d="M1280 110 Q1230 170 1250 230 Q1300 200 1280 110Z" fill="#1a4590"/>
+    </g>
+    <!-- 葉子（右下、左下） -->
+    <g fill="#153f85">
+      <path d="M1420 941 Q1400 800 1520 740 Q1500 850 1580 900 L1580 941Z"/>
+      <path d="M1580 941 Q1600 780 1672 690 L1672 941Z" fill="#1c4a99"/>
+      <path d="M1300 941 Q1330 880 1400 870 Q1380 920 1350 941Z" fill="#274f97"/>
+    </g>
+    <g fill="#274f97">
+      <path d="M0 760 Q60 770 90 830 Q30 830 0 800Z"/><path d="M0 860 Q90 850 150 941 L0 941Z" fill="#153f85"/>
+      <path d="M180 941 Q230 900 250 941Z"/>
+    </g>
+    <!-- 手寫線 -->
+    <path d="M418 518 Q500 490 574 496" stroke="#1a4a9a" stroke-width="3" fill="none" stroke-linecap="round"/>
+  </svg>
+
+  <div class="abs brand">ROUND LAB</div>
+  <h1 class="abs">純淨水分<br>溫柔守護</h1>
+  <div class="abs sub-en">BIRCH JUICE MOISTURIZING CREAM</div>
+  <div class="abs tags">深層保濕<i>|</i>溫和修護<i>|</i>清爽不黏膩</div>
+  <div class="abs script">來自白樺樹的純淨水分<span>為肌膚注入溫柔力量。</span></div>
+
+  <!-- 限時優惠 -->
+  <div class="abs promo">
+    <div class="pill">
+      <svg viewBox="0 0 40 40" fill="none" stroke="#0f2a5c" stroke-width="3" stroke-linecap="round"><circle cx="20" cy="22" r="14"/><path d="M20 14v8l5 3M14 4h12"/></svg>
+      限時優惠
+    </div>
+    <div class="line1">買滿 HK$399</div>
+    <div class="brush"></div>
+    <div class="minus">減</div>
+    <div class="amt">HK$20</div>
+    <svg class="spark" style="left:520px;top:0" width="0" height="0"></svg>
+  </div>
+
+  <a class="abs cta" href="#">立即選購
+    <svg viewBox="0 0 40 28" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 14h34M25 3l11 11-11 11"/></svg>
+  </a>
+
+  <!-- 產品 -->
+  <div class="abs jar" role="img" aria-label="Round Lab 白樺樹保濕面霜">
+    <div class="body">
+      <div class="stripe"></div>
+      <div class="ko">자작나무 수분크림</div>
+      <div class="hash">#수분진정 #비타히알루론산</div>
+      <div class="bl"></div><div class="pond"></div>
+    </div>
+    <div class="lid"><b>ROUND<br>LAB</b></div>
+  </div>
+
+  <!-- 贈品 -->
+  <div class="abs free">免費送</div>
+  <div class="abs bubble">
+    <svg class="gift" viewBox="0 0 64 60" fill="none" stroke="#0f2a5c" stroke-width="4" stroke-linejoin="round"><rect x="6" y="22" width="52" height="34" rx="3"/><rect x="2" y="12" width="60" height="12" rx="3"/><path d="M32 12v44M32 12C24 -2 12 6 20 12M32 12C40 -2 52 6 44 12"/></svg>
+    <div class="thr">買滿 HK$599</div>
+    <div class="song">送</div>
+    <div class="name">Round Lab<br><em>白樺樹保濕面霜</em><br><em>80ml</em></div>
+    <svg class="arrow" viewBox="0 0 64 64" fill="none" stroke="#0f2a5c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M56 6C56 36 34 48 8 54M8 54l14-4M8 54l8-12"/></svg>
+  </div>
+
+  <div class="abs good"><span>Good</span><span>Skin</span><span>Days!</span></div>
+</section>
+</body>
+</html>
