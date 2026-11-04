@@ -46,6 +46,10 @@ tools/build.sh ep01_intro
 tools/build.sh ep01_intro --no-tts
 ```
 
+## 字幕
+
+畫面預設**唔會內嵌字幕**。字幕用 `python3 tools/subtitles.py ep01 ep01_intro ep01_main` 生成英文、簡體、繁體 SRT（字幕檔），喺 YouTube 上載。真係要燒入畫面先用 `CAPTIONS=1`。
+
 ## 改劇本
 
 編輯 `script/ep01_intro.json`：
