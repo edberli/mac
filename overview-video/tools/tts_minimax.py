@@ -33,6 +33,14 @@ def call(path, body):
     return res
 
 
+# post effects; 'robot' keeps the voice clear but gives it a metallic, digital edge
+MFX = {
+    'ai': ',chorus=0.7:0.9:18:0.22:0.25:2',
+    'robot': ',chorus=0.6:0.85:10|16:0.35|0.3:0.4|0.5:2|2.5,aecho=0.85:0.5:9|17:0.3|0.2,acrusher=bits=12:mix=0.18:samples=1:mode=log,'
+             'tremolo=f=55:d=0.12,highpass=f=110,equalizer=f=2800:width_type=o:width=1.2:g=3,acompressor=threshold=-18dB:ratio=3',
+}
+
+
 def synth(text, v, emotion, out):
     vs = {'voice_id': v['minimax'], 'speed': v.get('speed', 1.0), 'vol': v.get('vol', 1.0), 'pitch': v.get('pitch', 0)}
     if emotion:
@@ -42,7 +50,7 @@ def synth(text, v, emotion, out):
     mp3 = out.replace('.wav', '.mp3')
     with open(mp3, 'wb') as f:
         f.write(bytes.fromhex(res['data']['audio']))
-    fx = 'aresample=44100' + (',chorus=0.7:0.9:18:0.22:0.25:2' if v.get('minimax_fx', 'ai' if v.get('fx') == 'robot' else '') == 'ai' else '')
+    fx = 'aresample=44100' + MFX.get(v.get('minimax_fx', ''), '')
     subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', mp3, '-af', fx, '-ac', '1', '-ar', '44100', out], check=True)
 
 

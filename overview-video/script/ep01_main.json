@@ -5,12 +5,13 @@
       "model": "en_US-ryan-medium",
       "fx": "human",
       "minimax": "English_FriendlyPerson",
-      "fx_minimax": "human"
+      "minimax_fx": ""
     },
     "A": {
       "model": "en_GB-alan-medium",
       "fx": "robot",
-      "minimax": "English_WiseScholar"
+      "minimax": "English_Gentle-voiced_man",
+      "minimax_fx": "robot"
     }
   },
   "beats": [

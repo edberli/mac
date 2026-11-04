@@ -18,9 +18,12 @@ await document.fonts.load('600 40px Inter'); await document.fonts.load('700 72px
 
 // ---------- orbit views (shared by cold open and the end of the rise, so they match) ----------
 const ORBIT = t => ({ lat: 38, lon: 112 + t * 0.01, alt: 400, heading: 45, pitch: 26, sun: { az: -65, el: 24 }, cloudShift: t * 0.00002, starLevel: 0.5 });
+const ORBIT_CACHE = {};
 function drawOrbit(t, pitch, alpha = 1) {
-  const v = ORBIT(t); if (pitch !== undefined) v.pitch = pitch;
-  ctx.save(); ctx.globalAlpha = alpha; ctx.drawImage(EARTH.render(v), 0, 0); ctx.restore();
+  const v = ORBIT(0); if (pitch !== undefined) v.pitch = pitch;     // static view, rendered once per pitch and reused
+  const key = v.pitch.toFixed(2);
+  if (!ORBIT_CACHE[key]) { const c = document.createElement('canvas'); c.width = W; c.height = H; c.getContext('2d').drawImage(EARTH.render(v), 0, 0); ORBIT_CACHE[key] = c; }
+  ctx.save(); ctx.globalAlpha = alpha; ctx.drawImage(ORBIT_CACHE[key], 0, 0); ctx.restore();
 }
 
 // ---------- characters ----------
