@@ -1,0 +1,242 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<script type="importmap">{ "imports": { "three": "/node_modules/three/build/three.module.js" } }</script>
+<style>html,body{margin:0;background:#000}canvas{display:block}</style>
+</head><body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script type="module">
+import { createEarth } from './lib/earth.js';
+import * as K from './lib/kit2d.js';
+
+const W = 1920, H = 1080;
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+K.bind(ctx);
+const { clamp, lerp, smooth, easeInOut, mix, push, rng } = K;
+let TL = null; window.setTimeline = tl => { TL = tl; };
+const EARTH = await createEarth(W, H);
+await document.fonts.load('600 40px Inter'); await document.fonts.load('700 72px Inter'); await document.fonts.load('500 16px Inter');
+const MOON = await new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = '/assets/textures/2k_moon.jpg'; });
+
+// ---------- Earth views, rendered once each and reused (fast) ----------
+const VIEWS = {
+  day:   { lat: 38, lon: 112, alt: 400, heading: 45, pitch: 26, sun: { az: -65, el: 24 }, starLevel: 0.5 },
+  night: { lat: 38, lon: 112, alt: 400, heading: 45, pitch: 26, sun: { az: 160, el: -40 }, starLevel: 0.9, nightBoost: 2.6, sunVisible: false },
+  limb:  { lat: 8, lon: 140, alt: 400, heading: 90, pitch: 14, sun: { az: -120, el: 22 }, starLevel: 0.7, sunVisible: false },
+  disk:  { lat: 0, lon: 15, alt: 384400, heading: 0, pitch: 90, fov: 5.5, sun: { az: 90, el: 0 }, starLevel: 0.35, sunVisible: false },
+};
+const CACHE = {};
+function earth(name) {
+  if (!CACHE[name]) { const c = document.createElement('canvas'); c.width = W; c.height = H; c.getContext('2d').drawImage(EARTH.render(VIEWS[name]), 0, 0); CACHE[name] = c; }
+  return CACHE[name];
+}
+
+// ---------- characters + deck (same layout as the intro) ----------
+const HUMAN = { x: 760, y: 800 }, AX = { x: 1010, y: 585 };
+const RIM_DAY = '#8fc4ff', RIM_NIGHT = '#4a5f80';
+function characters(t, f, o) {
+  K.drawHuman(HUMAN.x, HUMAN.y, t, K.talkAt(TL, 'H', f), o.lean, o.look, o.rim);
+  K.drawAxis(AX.x, AX.y, t, K.talkAt(TL, 'A', f), { body: '#1a1d27', rim: o.rim, rimDx: 3, rimDy: -2, eye: K.EYE }, o.axLook ?? -1);
+}
+function deck(t, f, o) {
+  ctx.save(); push(0, 10, o.local ?? 0, o.s0 ?? 1.13, o.s1 ?? 1.17, 900, 600);
+  ctx.drawImage(earth('day'), 0, 0);
+  if (o.night > 0) { ctx.save(); ctx.globalAlpha = o.night; ctx.drawImage(earth('night'), 0, 0); ctx.restore(); }
+  if (o.extra) o.extra();
+  K.deckBack(t, 1, mix(RIM_DAY, RIM_NIGHT, o.night || 0));
+  characters(t, f, { lean: o.lean ?? 0, look: o.look ?? 0, rim: mix(RIM_DAY, RIM_NIGHT, o.night || 0), axLook: o.axLook });
+  ctx.restore();
+  K.vignette(0.55);
+}
+const LINE = i => TL.lines[i];
+const lineK = (i, t) => clamp((t - LINE(i).start) / (LINE(i).end - LINE(i).start));
+
+// ---------- HUD / infographic helpers (AXIS's projection style) ----------
+const HUD = '#7ff3ff';
+function hudText(text, x, y, size, a, align = 'left', weight = 600, col = '#ffffff') {
+  if (a <= 0) return; ctx.save(); ctx.globalAlpha = a; ctx.textAlign = align; ctx.font = `${weight} ${size}px Inter`; ctx.fillStyle = col;
+  ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 10; ctx.fillText(text, x, y); ctx.restore();
+}
+function dim(a) { ctx.fillStyle = `rgba(2,6,14,${a})`; ctx.fillRect(0, 0, W, H); }
+function infoTag(top, sub, a) { hudText(top, 72, 96, 22, a, 'left', 600); hudText(sub, 72, 122, 16, a * 0.7, 'left', 500); }
+function distHUD(label, value, a) { hudText(label, 72, 88, 15, a * 0.6); hudText(value, 70, 136, 44, a); }
+
+function pencilDiagram(t) {
+  const k = lineK(1, t), a = smooth(0, 0.08, k);
+  dim(0.72 * a);
+  ctx.save(); ctx.globalAlpha = a;
+  // left: wall cross-section seen from 400 km
+  ctx.strokeStyle = HUD; ctx.lineWidth = 2; ctx.shadowColor = HUD; ctx.shadowBlur = 10;
+  const p1 = smooth(0.05, 0.2, k), p2 = smooth(0.3, 0.45, k), p3 = smooth(0.55, 0.7, k);
+  ctx.globalAlpha = a * p1;
+  ctx.strokeRect(420, 640, 60, 26); for (let x = 420; x < 480; x += 15) ctx.strokeRect(x, 626, 9, 14);
+  ctx.restore();
+  hudText('GREAT WALL', 450, 712, 22, a * p1, 'center'); hudText('≈ 6 m wide', 450, 742, 20, a * p1, 'center', 500, HUD);
+  ctx.save(); ctx.globalAlpha = a * p2; ctx.strokeStyle = HUD; ctx.setLineDash([6, 8]); ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(450, 600); ctx.lineTo(450, 260); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+  hudText('400 km', 470, 440, 34, a * p2, 'left', 700, HUD);
+  hudText('=', 960, 470, 90, a * p3, 'center', 300);
+  // right: pencil seen from 500 m
+  ctx.save(); ctx.globalAlpha = a * p3; ctx.strokeStyle = HUD; ctx.lineWidth = 2; ctx.shadowColor = HUD; ctx.shadowBlur = 10;
+  ctx.beginPath(); ctx.moveTo(1440, 640); ctx.lineTo(1440, 560); ctx.lineTo(1446, 545); ctx.lineTo(1452, 560); ctx.lineTo(1452, 640); ctx.closePath(); ctx.stroke();
+  ctx.setLineDash([6, 8]); ctx.beginPath(); ctx.moveTo(1446, 530); ctx.lineTo(1446, 260); ctx.stroke(); ctx.restore();
+  hudText('PENCIL', 1446, 712, 22, a * p3, 'center'); hudText('≈ 7 mm wide', 1446, 742, 20, a * p3, 'center', 500, HUD);
+  hudText('500 m away', 1466, 440, 34, a * p3, 'left', 700, HUD);
+}
+function timelineDiagram(t) {
+  const k = clamp((t - TL.scenes.timeline) / (TL.scenes.canSee - TL.scenes.timeline)), a = smooth(0, 0.05, k) * (1 - smooth(0.95, 1, k));
+  dim(0.75 * a);
+  const x0 = 360, x1 = 1560, y = 560, grow = smooth(0.05, 0.45, k);
+  ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = HUD; ctx.lineWidth = 3; ctx.shadowColor = HUD; ctx.shadowBlur = 12;
+  ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(lerp(x0, x1, grow), y); ctx.stroke();
+  ctx.fillStyle = HUD; ctx.beginPath(); ctx.arc(x0, y, 9, 0, Math.PI * 2); ctx.fill();
+  if (grow > 0.98) { ctx.beginPath(); ctx.arc(x1, y, 9, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+  hudText('1754', x0, y - 40, 56, a, 'center', 700); hudText('Claim first written down', x0, y + 60, 22, a * 0.85, 'center', 500);
+  const b = a * smooth(0.42, 0.5, k);
+  hudText('1961', x1, y - 40, 56, b, 'center', 700); hudText('First human in space', x1, y + 60, 22, b * 0.85, 'center', 500);
+  hudText('207 years with nobody able to check', (x0 + x1) / 2, y + 150, 30, a * smooth(0.6, 0.7, k), 'center', 600, HUD);
+}
+
+// ---------- night extras: aurora + lightning (drawn on the Earth, under the window frame) ----------
+function aurora(t, a) {
+  if (a <= 0) return;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (let x = 170; x < 1750; x += 6) {
+    const hgt = 70 + 40 * Math.sin(x * 0.006 + t * 0.6) + 25 * Math.sin(x * 0.017 - t * 1.1);
+    const base = 420 + 18 * Math.sin(x * 0.004 + t * 0.3);
+    const g = ctx.createLinearGradient(0, base - hgt, 0, base);
+    const s = 0.5 + 0.5 * Math.sin(x * 0.01 + t * 0.8);
+    g.addColorStop(0, 'rgba(80,255,170,0)'); g.addColorStop(0.7, `rgba(80,255,170,${0.10 * a * (0.5 + s)})`); g.addColorStop(1, `rgba(120,255,200,${0.22 * a * (0.5 + s)})`);
+    ctx.fillStyle = g; ctx.fillRect(x, base - hgt, 6, hgt);
+  }
+  ctx.restore();
+}
+const BOLTS = (() => { const r = rng(91); return Array.from({ length: 22 }, () => [300 + r() * 1300, 520 + r() * 220, r() * 8, 0.08 + r() * 0.1]); })();
+function lightning(t, a) {
+  if (a <= 0) return;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const [x, y, ph, len] of BOLTS) { const p = ((t + ph) % 2.3); if (p > len) continue;
+    const k = 1 - p / len, g = ctx.createRadialGradient(x, y, 0, x, y, 34);
+    g.addColorStop(0, `rgba(235,240,255,${0.95 * k * a})`); g.addColorStop(0.3, `rgba(170,190,255,${0.45 * k * a})`); g.addColorStop(1, 'rgba(150,170,255,0)'); ctx.fillStyle = g; ctx.fillRect(x - 34, y - 34, 68, 68); }
+  ctx.restore();
+}
+
+// ---------- Earthrise from lunar orbit ----------
+function earthrise(t, local) {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  const rise = lerp(330, -40, easeInOut(smooth(0, 9, local)));
+  ctx.save(); push(0, 16, local, 1.0, 1.12, 960, 640); ctx.drawImage(earth('disk'), 0, rise); ctx.restore();
+  // lunar horizon in the foreground
+  ctx.save(); ctx.beginPath(); ctx.ellipse(960, 2400, 2300, 1640, 0, 0, Math.PI * 2); ctx.clip();
+  const pat = ctx.createPattern(MOON, 'repeat'); ctx.fillStyle = pat; ctx.translate(-local * 12, 0); ctx.fillRect(-200, 700, W + 600, 600);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const sh = ctx.createLinearGradient(0, 760, 0, H); sh.addColorStop(0, 'rgba(0,0,0,0.15)'); sh.addColorStop(1, 'rgba(0,0,0,0.85)'); ctx.fillStyle = sh; ctx.fillRect(0, 700, W, 400);
+  ctx.restore();
+  ctx.save(); ctx.strokeStyle = 'rgba(255,240,220,0.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(960, 2400, 2300, 1640, 0, Math.PI * 1.25, Math.PI * 1.75); ctx.stroke(); ctx.restore();
+  K.vignette(0.6);
+  infoTag('1968 · APOLLO 8', 'Lunar orbit, about 384,000 km from Earth', smooth(0.3, 1.0, local) * (1 - smooth(6, 7, local)));
+}
+
+// ---------- Voyager 1 and the Pale Blue Dot ----------
+const DEEP = (() => { const r = rng(17); return Array.from({ length: 500 }, () => [r() * W, r() * H, Math.pow(r(), 4) * 1.6 + 0.3, r()]); })();
+function deepStars(a) { for (const [x, y, s, b] of DEEP) { ctx.fillStyle = `rgba(255,255,255,${a * (0.25 + b * 0.5)})`; ctx.fillRect(x, y, s, s); } }
+function voyager(t, local) {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); deepStars(1);
+  K.bloomSun(220, 260, 380, '#fff6e0', '#ffcf8a', 0.7);
+  ctx.save(); ctx.translate(lerp(1180, 980, smooth(0, 9, local)), 560); ctx.rotate(-0.25 + local * 0.01); ctx.scale(1.3, 1.3);
+  ctx.fillStyle = '#0d0f14'; ctx.strokeStyle = 'rgba(255,230,190,0.6)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.ellipse(0, 0, 90, 22, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();          // dish
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -60); ctx.stroke();
+  ctx.fillRect(-26, 18, 52, 30); ctx.strokeRect(-26, 18, 52, 30);                                     // bus
+  ctx.beginPath(); ctx.moveTo(26, 34); ctx.lineTo(220, 70); ctx.moveTo(-26, 34); ctx.lineTo(-150, 90); ctx.moveTo(0, 48); ctx.lineTo(0, 200); ctx.stroke(); // booms
+  ctx.restore();
+  K.vignette(0.5);
+  infoTag('1990 · VOYAGER 1', 'About 6 billion km from Earth', smooth(0.3, 1.0, local));
+}
+function paleDot(t, local) {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  ctx.save(); push(0, 10, local, 1.0, 1.25, 1210, 560);
+  deepStars(0.5);
+  for (const [x, w, c] of [[640, 120, '255,190,160'], [1180, 160, '255,215,170'], [1560, 110, '230,170,190']]) {
+    ctx.save(); ctx.translate(x, 540); ctx.rotate(0.38);
+    const g = ctx.createLinearGradient(-w, 0, w, 0); g.addColorStop(0, `rgba(${c},0)`); g.addColorStop(0.5, `rgba(${c},0.22)`); g.addColorStop(1, `rgba(${c},0)`);
+    ctx.fillStyle = g; ctx.fillRect(-w, -1200, w * 2, 2400); ctx.restore();
+  }
+  ctx.fillStyle = '#cfe6ff'; ctx.fillRect(1209, 559, 2.5, 2.5);
+  const c = smooth(0.8, 1.6, local);
+  ctx.save(); ctx.globalAlpha = c; ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(1210, 560, 26, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  ctx.restore();
+  hudText('EARTH', 1210 + 60, 520, 22, c, 'left', 700); hudText('less than one pixel', 1210 + 60, 548, 18, c * 0.75, 'left', 500);
+  K.vignette(0.4);
+}
+
+// ---------- rocket launch (2021) ----------
+function rocket(t, local) {
+  K.sunsetSky([[0, '#16203a'], [0.4, '#5a4a72'], [0.62, '#e09060'], [0.72, '#ffd8a0'], [1, '#2a1a14']]);
+  K.bloomSun(1450, 780, 520, '#fff0c8', '#ff8a46', 0.8);
+  const dune = x => 800 + Math.sin(x * 0.003) * 12 + Math.sin(x * 0.009 + 1) * 6;
+  ctx.fillStyle = '#140c0c'; ctx.beginPath(); ctx.moveTo(-10, H); for (let x = -10; x <= W + 10; x += 20) ctx.lineTo(x, dune(x)); ctx.lineTo(W + 10, H); ctx.fill();
+  const lift = Math.pow(smooth(1.2, 13, local), 1.8) * 1100, rx = 900, ry = 760 - lift;
+  // launch tower
+  ctx.fillStyle = '#140c0c'; ctx.fillRect(840, 560, 22, 240); for (let y = 580; y < 800; y += 30) ctx.fillRect(862, y, 30, 4);
+  // exhaust trail
+  if (lift > 2) { const g = ctx.createLinearGradient(0, ry + 60, 0, 800); g.addColorStop(0, 'rgba(255,230,190,0.9)'); g.addColorStop(0.15, 'rgba(255,200,150,0.45)'); g.addColorStop(1, 'rgba(200,170,160,0.15)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(rx - 8, ry + 60); ctx.lineTo(rx + 8, ry + 60); ctx.lineTo(rx + 40, 800); ctx.lineTo(rx - 40, 800); ctx.fill(); }
+  ctx.save(); ctx.translate(rx, ry); ctx.fillStyle = '#100a0a';
+  ctx.beginPath(); ctx.moveTo(-14, 60); ctx.lineTo(-14, -40); ctx.quadraticCurveTo(0, -80, 14, -40); ctx.lineTo(14, 60); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-14, 40); ctx.lineTo(-26, 64); ctx.lineTo(-14, 60); ctx.moveTo(14, 40); ctx.lineTo(26, 64); ctx.lineTo(14, 60); ctx.fill();
+  if (lift > 0 || local > 0.6) { ctx.globalCompositeOperation = 'lighter'; const fl = ctx.createRadialGradient(0, 70, 0, 0, 70, 50); fl.addColorStop(0, 'rgba(255,240,200,1)'); fl.addColorStop(1, 'rgba(255,140,60,0)');
+    ctx.fillStyle = fl; ctx.beginPath(); ctx.ellipse(0, 80, 18, 45 + Math.sin(t * 40) * 5, 0, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+  K.vignette(0.6);
+  infoTag('2021 · AGE 90', 'A short trip to space and back', smooth(0.3, 1, local));
+}
+
+// ---------- end card ----------
+function endCard(t, local) {
+  ctx.drawImage(earth('limb'), 0, 0); dim(0.55);
+  hudText('Wait What', W / 2, 470, 84, smooth(0.2, 0.8, local), 'center', 700);
+  hudText('SUBSCRIBE FOR MORE', W / 2, 545, 26, smooth(0.6, 1.2, local), 'center', 600, HUD);
+  hudText('Earth, Moon & star textures: Solar System Scope (CC BY 4.0), based on NASA data', W / 2, 1010, 16, 0.6 * smooth(0.8, 1.4, local), 'center', 500, 'rgba(255,255,255,0.7)');
+}
+
+// ---------- master ----------
+window.render = function (f) {
+  const t = f / TL.fps, S = TL.scenes;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, W, H); ctx.globalAlpha = 1; ctx.filter = 'none';
+  const lookDown = { lean: 0.55, look: 0.85, axLook: 0 }, toAxis = { lean: 0.1, look: -0.28, axLook: -1 };
+  if (t < S.timeline) {
+    deck(t, f, Object.assign({ local: t }, t < S.why ? lookDown : toAxis));
+    if (t >= S.pencil && t < S.why) pencilDiagram(t);
+  } else if (t < S.canSee) {
+    deck(t, f, Object.assign({ local: t }, toAxis)); timelineDiagram(t);
+  } else if (t < S.further + 2.5) {
+    const n = smooth(S.night, S.night + 2.5, t);
+    const pose = t < S.night ? toAxis : { lean: 0.3, look: 0.4, axLook: 0 };
+    deck(t, f, Object.assign({ local: t, night: n, extra: () => { aurora(t, smooth(S.aurora, S.aurora + 1.5, t)); lightning(t, smooth(S.aurora + 1.5, S.aurora + 2.5, t)); } }, pose));
+    const info = smooth(LINE(6).start, LINE(6).start + 0.5, t) * (1 - smooth(S.night, S.night + 0.6, t));
+    infoTag('1 ORBIT ≈ 90 MIN', '16 sunrises and sunsets every day', info);
+    if (t > S.further) { const z = smooth(S.further, S.further + 2.5, t); ctx.fillStyle = `rgba(0,0,0,${z})`; ctx.fillRect(0, 0, W, H); }
+  } else if (t < S.earthrise) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); }
+  else if (t < S.voyager) earthrise(t, t - S.earthrise);
+  else if (t < S.dot) voyager(t, t - S.voyager);
+  else if (t < S.back) paleDot(t, t - S.dot);
+  else if (t < S.shatner) {
+    deck(t, f, Object.assign({ local: t - S.back, s0: 1.17, s1: 1.2 }, toAxis));
+    const a = smooth(LINE(19).start, LINE(19).start + 0.5, t) * (1 - smooth(S.shatner - 0.6, S.shatner, t));
+    dim(0.35 * a); hudText('THE OVERVIEW EFFECT', W / 2, 300, 64, a, 'center', 700);
+  } else if (t < S.grief) rocket(t, t - S.shatner);
+  else if (t < S.ending) { ctx.save(); push(0, 6, t - S.grief, 1.0, 1.06, 960, 700); ctx.drawImage(earth('limb'), 0, 0); ctx.restore(); K.vignette(0.5); }
+  else if (t < S.endCard) deck(t, f, Object.assign({ local: t - S.ending, s0: 1.17, s1: 1.25 }, t < LINE(26).start ? toAxis : lookDown));
+  else endCard(t, t - S.endCard);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  K.grain(0.07, f);
+  K.captions(TL, t);
+  // short black dips between big scene changes
+  for (const m of [S.voyager, S.dot, S.back, S.shatner, S.grief, S.ending, S.endCard]) { const d = 1 - Math.min(Math.abs(t - m) / 0.25, 1); if (d > 0) { ctx.fillStyle = `rgba(0,0,0,${d})`; ctx.fillRect(0, 0, W, H); } }
+  const fade = 1 - smooth(S.end - 1.0, S.end, t); if (fade < 1) { ctx.fillStyle = `rgba(0,0,0,${1 - fade})`; ctx.fillRect(0, 0, W, H); }
+  return cv.toDataURL('image/png');
+};
+window.ready = true;
+</script>
+</body></html>

@@ -373,7 +373,13 @@ export function captions(TL, t) {
   const ln = TL.lines.find(l => t >= l.start - 0.05 && t <= l.end + 0.25); if (!ln) return;
   ctx.save(); ctx.font = '600 40px Inter'; ctx.textAlign = 'center'; ctx.fillStyle = '#ffffff'; ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 14;
   ctx.globalAlpha = smooth(ln.start - 0.05, ln.start + 0.1, t) * (1 - smooth(ln.end + 0.1, ln.end + 0.25, t));
-  ctx.fillText(ln.text, W / 2, 1000); ctx.restore();
+  // wrap long lines into two balanced rows
+  if (ctx.measureText(ln.text).width > 1640) {
+    const words = ln.text.split(' '); let best = 1, bestD = 1e9;
+    for (let i = 1; i < words.length; i++) { const d = Math.abs(ctx.measureText(words.slice(0, i).join(' ')).width - ctx.measureText(words.slice(i).join(' ')).width); if (d < bestD) { bestD = d; best = i; } }
+    ctx.fillText(words.slice(0, best).join(' '), W / 2, 958); ctx.fillText(words.slice(best).join(' '), W / 2, 1010);
+  } else ctx.fillText(ln.text, W / 2, 1000);
+  ctx.restore();
 }
 export function altitudeHUD(km, a) {
   if (a <= 0) return; ctx.save(); ctx.globalAlpha = a;
