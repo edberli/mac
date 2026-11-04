@@ -2,7 +2,7 @@
 # One-time setup: Python TTS, voice models, Node packages.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-pip install -q --target .pydeps piper-tts numpy
+pip install -q --target .pydeps piper-tts numpy opencc-python-reimplemented
 mkdir -p .voices
 for v in en/en_US/ryan/medium/en_US-ryan-medium en/en_GB/alan/medium/en_GB-alan-medium en/en_US/lessac/medium/en_US-lessac-medium; do
   n=$(basename "$v")
@@ -10,4 +10,6 @@ for v in en/en_US/ryan/medium/en_US-ryan-medium en/en_GB/alan/medium/en_GB-alan-
   [ -f ".voices/$n.onnx.json" ] || curl -sSL -o ".voices/$n.onnx.json" "https://huggingface.co/rhasspy/piper-voices/resolve/main/$v.onnx.json"
 done
 npm install --silent
+npx playwright install chromium   # headless browser used by tools/render.js
 echo "setup done"
+echo "Also needed: ffmpeg (Mac: brew install ffmpeg) and MINIMAX_API_KEY in your environment for voices."

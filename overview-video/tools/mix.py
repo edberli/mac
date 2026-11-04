@@ -7,15 +7,17 @@ The pad / hit / whoosh are simple synthesized placeholders, not music.
 import json, os, subprocess, sys
 
 
-def main(out_dir):
-    tl = json.load(open(os.path.join(out_dir, 'timeline.json')))
+def main(out_dir, audio_dir=None, out_name='mix.wav', timeline=None):
+    """audio_dir/out_name/timeline let other tools (e.g. tools/dub.py) mix a second language without touching the English files."""
+    tl = json.load(open(timeline or os.path.join(out_dir, 'timeline.json')))
+    audio_dir = audio_dir or os.path.join(out_dir, 'audio')
     end = tl['scenes'].get('end') or tl['frames'] / tl['fps']
     M = tl['scenes']
     inputs, chains, labels = [], [], []
     count = lambda: sum(1 for a in inputs if a == '-i')  # number of ffmpeg inputs so far
     for ln in tl['lines']:
         k = count()
-        inputs += ['-i', os.path.join(out_dir, 'audio', f"l{ln['i']:02d}.wav")]
+        inputs += ['-i', os.path.join(audio_dir, f"l{ln['i']:02d}.wav")]
         ms = int(ln['start'] * 1000)
         chains.append(f'[{k}]adelay={ms}|{ms}[v{k}]')
         labels.append(f'[v{k}]')
@@ -45,9 +47,9 @@ def main(out_dir):
     chains.append('[vox]' + ''.join(fx_labels) + f'amix=inputs={1+len(fx_labels)}:normalize=0,atrim=0:{end},'
                   'aformat=channel_layouts=stereo,loudnorm=I=-16:TP=-1.5:LRA=11[out]')
     cmd = ['ffmpeg', '-v', 'error', '-y', *inputs, '-filter_complex', ';'.join(chains), '-map', '[out]', '-ar', '44100',
-           os.path.join(out_dir, 'mix.wav')]
+           os.path.join(out_dir, out_name)]
     subprocess.run(cmd, check=True)
-    print('mix.wav written')
+    print(out_name, 'written')
 
 
 if __name__ == '__main__':

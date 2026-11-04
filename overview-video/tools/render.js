@@ -28,7 +28,8 @@ function serve() {
   const frames = list ? list.split(',').map(Number) : Array.from({ length: tl.frames }, (_, i) => i);
   const server = await serve();
   const url = `http://127.0.0.1:${server.address().port}/${page}`;
-  const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+  // cloud machines have no GPU: force software WebGL; on a Mac set GPU=1 to use the real graphics card
+  const browser = await chromium.launch({ args: process.env.GPU ? ['--ignore-gpu-blocklist'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const workers = Math.min(Number(process.env.WORKERS || 4), frames.length);
   let done = 0;
   await Promise.all(Array.from({ length: workers }, async (_, w) => {

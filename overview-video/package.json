@@ -3,6 +3,7 @@
   "private": true,
   "description": "Code-generated animation pipeline for the Overview video series",
   "dependencies": {
-    "three": "0.169.0"
+    "three": "0.169.0",
+    "playwright": "1.48.2"
   }
 }
