@@ -68,6 +68,7 @@ export async function createEarth(width = 1920, height = 1080) {
   const load = (f, srgb = true) => new Promise((res, rej) => loader.load(TEX + f, t => { if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); res(t); }, undefined, rej));
   const [day, night, clouds, spec, stars] = await Promise.all([
     load('8k_earth_daymap.jpg'), load('8k_earth_nightmap.jpg'), load('8k_earth_clouds.jpg', false), load('8k_earth_specular_map.jpg', false), load('8k_stars_milky_way.jpg')]);
+  stars.colorSpace = THREE.SRGBColorSpace;
   clouds.wrapS = THREE.RepeatWrapping;
   const uniforms = { dayMap: { value: day }, nightMap: { value: night }, cloudMap: { value: clouds }, specMap: { value: spec },
     sunDir: { value: new THREE.Vector3(1, 0, 0) }, cloudShift: { value: 0 }, nightBoost: { value: 1.3 } };
@@ -104,7 +105,7 @@ export async function createEarth(width = 1920, height = 1080) {
     const p = THREE.MathUtils.degToRad(v.pitch);
     const look = fwd.clone().multiplyScalar(Math.cos(p)).add(up.clone().multiplyScalar(-Math.sin(p)));
     camera.fov = v.fov || 45; camera.updateProjectionMatrix();
-    camera.position.copy(pos); camera.up.copy(up);
+    camera.position.copy(pos); camera.up.copy(Math.abs(v.pitch) > 85 ? fwd : up);
     camera.lookAt(pos.clone().add(look));
     const az = THREE.MathUtils.degToRad(v.sun.az), el = THREE.MathUtils.degToRad(v.sun.el);
     uniforms.sunDir.value.copy(fwd.clone().multiplyScalar(Math.cos(el) * Math.cos(az)).add(right.clone().multiplyScalar(Math.cos(el) * Math.sin(az))).add(up.clone().multiplyScalar(Math.sin(el)))).normalize();
