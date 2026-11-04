@@ -3,11 +3,14 @@
   "voices": {
     "H": {
       "model": "en_US-ryan-medium",
-      "fx": "human"
+      "fx": "human",
+      "minimax": "English_FriendlyPerson",
+      "fx_minimax": "human"
     },
     "A": {
       "model": "en_GB-alan-medium",
-      "fx": "robot"
+      "fx": "robot",
+      "minimax": "English_WiseScholar"
     }
   },
   "beats": [
@@ -19,7 +22,8 @@
     },
     {
       "say": "H",
-      "text": "Wait... where's the Great Wall?"
+      "text": "Wait... where's the Great Wall?",
+      "emotion": "surprised"
     },
     {
       "pause": 0.3
@@ -49,7 +53,8 @@
     },
     {
       "say": "A",
-      "text": "Everyone's wrong. And that's not even the strangest thing up here."
+      "text": "Everyone's wrong. And that's not even the strangest thing up here.",
+      "emotion": "happy"
     },
     {
       "pause": 0.3
@@ -82,7 +87,8 @@
     },
     {
       "say": "H",
-      "text": "Wait... what?"
+      "text": "Wait... what?",
+      "emotion": "surprised"
     },
     {
       "pause": 0.35

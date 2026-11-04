@@ -42,7 +42,7 @@ def synth(text, v, emotion, out):
     mp3 = out.replace('.wav', '.mp3')
     with open(mp3, 'wb') as f:
         f.write(bytes.fromhex(res['data']['audio']))
-    fx = 'aresample=44100' + (',chorus=0.7:0.9:18:0.22:0.25:2' if v.get('fx') == 'ai' else '')
+    fx = 'aresample=44100' + (',chorus=0.7:0.9:18:0.22:0.25:2' if v.get('minimax_fx', 'ai' if v.get('fx') == 'robot' else '') == 'ai' else '')
     subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', mp3, '-af', fx, '-ac', '1', '-ar', '44100', out], check=True)
 
 
