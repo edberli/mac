@@ -1,0 +1,47 @@
+{
+  "title": "EP01 — Intro (first ~30 s)",
+  "voices": {
+    "H": { "model": "en_US-ryan-medium", "fx": "human" },
+    "A": { "model": "en_GB-alan-medium", "fx": "robot" }
+  },
+  "beats": [
+    { "mark": "coldOpen" },
+    { "pause": 0.5 },
+    { "say": "H", "text": "Wait... where's the Great Wall?" },
+    { "pause": 0.3 },
+    { "say": "A", "text": "With your eyes? You'll never find it." },
+    { "pause": 0.35 },
+    { "mark": "montage" },
+    { "pause": 0.2 },
+    { "say": "H", "text": "But everyone says it's the one thing humans built that you can see from space." },
+    { "pause": 0.3 },
+    { "mark": "montageWall" },
+    { "say": "A", "text": "Everyone's wrong. And that's not even the strangest thing up here." },
+    { "pause": 0.3 },
+    { "mark": "title" },
+    { "pause": 2.2 },
+    { "mark": "paris" },
+    { "pause": 0.9 },
+    { "say": "H", "text": "So... can you really see the Great Wall from space?" },
+    { "pause": 0.3 },
+    { "say": "A", "text": "Want to go up and find out?" },
+    { "pause": 0.25 },
+    { "say": "H", "text": "Wait... what?" },
+    { "pause": 0.35 },
+    { "say": "A", "text": "One warning. People who go up there... come back different." },
+    { "pause": 0.3 },
+    { "mark": "riseStart" },
+    { "pause": 5.0 },
+    { "mark": "riseEnd" },
+    { "pause": 0.3 },
+    { "say": "A", "text": "Four hundred kilometers. Look down." },
+    { "pause": 1.4 },
+    { "mark": "end" }
+  ],
+  "sfx": [
+    { "type": "pad", "from": "coldOpen", "to": "end" },
+    { "type": "hit", "at": "montage" },
+    { "type": "hit", "at": "title" },
+    { "type": "whoosh", "at": "riseStart", "dur": 5.0 }
+  ]
+}

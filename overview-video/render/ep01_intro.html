@@ -1,0 +1,126 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<script type="importmap">{ "imports": { "three": "/node_modules/three/build/three.module.js" } }</script>
+<style>html,body{margin:0;background:#000}canvas{display:block}</style>
+</head><body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script type="module">
+import { createEarth } from './lib/earth.js';
+import * as K from './lib/kit2d.js';
+
+const W = 1920, H = 1080;
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+K.bind(ctx);
+const { clamp, lerp, smooth, easeInOut, mix, push } = K;
+let TL = null; window.setTimeline = tl => { TL = tl; };
+const EARTH = await createEarth(W, H);
+await document.fonts.load('600 40px Inter'); await document.fonts.load('700 72px Inter'); await document.fonts.load('500 16px Inter');
+
+// ---------- orbit views (shared by cold open and the end of the rise, so they match) ----------
+const ORBIT = t => ({ lat: 38, lon: 112 + t * 0.01, alt: 400, heading: 45, pitch: 12.8, sun: { az: -65, el: 24 }, cloudShift: t * 0.00002, starLevel: 0.5 });
+function drawOrbit(t, pitch, alpha = 1) {
+  const v = ORBIT(t); if (pitch !== undefined) v.pitch = pitch;
+  ctx.save(); ctx.globalAlpha = alpha; ctx.drawImage(EARTH.render(v), 0, 0); ctx.restore();
+}
+
+// ---------- characters on the orbit ----------
+const HUMAN = { x: 760, y: 800 }, AX = { x: 1010, y: 585 };
+const ORBIT_RIM = '#8fc4ff';
+function characters(t, f, o) {
+  const tH = K.talkAt(TL, 'H', f), tA = K.talkAt(TL, 'A', f);
+  K.platform(HUMAN.x - 130, HUMAN.y + 16 + o.floatY, o.platform, t);
+  K.drawHuman(HUMAN.x, HUMAN.y + o.floatY, t, tH, o.lean, o.look, o.rim);
+  K.drawAxis(AX.x, AX.y + o.floatY, t, tA, { body: '#1a1d27', rim: o.rim, rimDx: 3, rimDy: -2, eye: K.EYE, ringSpeed: o.ringSpeed || 0.9, glow: o.glow || 0 }, o.axLook ?? -1);
+}
+
+// ---------- scenes ----------
+function coldOpen(t, f) {
+  const local = t;
+  ctx.save(); push(0, 5, local, 1.0, 1.035, 960, 700);
+  drawOrbit(t);
+  const lean = 0.55 + 0.05 * Math.sin(t * 0.8);
+  characters(t, f, { floatY: Math.sin(t * 1.3) * 5, platform: 1, lean, look: 0.85, rim: ORBIT_RIM });
+  ctx.restore();
+  K.vignette(0.55);
+  K.altitudeHUD(400, smooth(0.3, 0.9, t) * (1 - smooth(4.4, 4.9, t)));
+}
+function spaceTease(t, local, dur) {
+  // sunrise over the limb from orbit (no characters)
+  const e = lerp(-20.5, -17.6, smooth(0, dur, local));
+  const v = { lat: 8, lon: 140, alt: 400, heading: 90, pitch: 16 - local * 0.3, sun: { az: 0, el: e }, starLevel: 0.65, nightBoost: 1.6, sunLevel: smooth(-20.2, -19.3, e) };
+  ctx.drawImage(EARTH.render(v), 0, 0);
+  K.vignette(0.5);
+}
+function titleCard(t, local, dur) {
+  const v = { lat: 25, lon: 120, alt: 400, heading: 100, pitch: 14, sun: { az: 20, el: -24 }, starLevel: 0.7, nightBoost: 1.8 };
+  ctx.save(); push(0, dur, local, 1.0, 1.04, 960, 600); ctx.drawImage(EARTH.render(v), 0, 0); ctx.restore();
+  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(0, 0, W, H);
+  const a = smooth(0.15, 0.6, local) * (1 - smooth(dur - 0.4, dur, local));
+  ctx.save(); ctx.globalAlpha = a; ctx.textAlign = 'center'; ctx.fillStyle = '#ffffff';
+  ctx.font = '700 76px Inter'; ctx.letterSpacing = `${lerp(10, 16, smooth(0, dur, local))}px`;
+  ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 24;
+  ctx.fillText('THE VIEW THAT CHANGES YOU', W / 2, 520);
+  ctx.letterSpacing = '6px'; ctx.font = '500 20px Inter'; ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.fillText('WORKING TITLE', W / 2, 580);
+  ctx.restore();
+  K.vignette(0.5);
+}
+
+window.render = function (f) {
+  const t = f / TL.fps, S = TL.scenes;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, W, H); ctx.filter = 'none'; ctx.globalAlpha = 1;
+  const pyramidsAt = S.montage + 1.7, teaseAt = S.montageWall + 2.1;
+  if (t < S.montage) coldOpen(t, f);
+  else if (t < pyramidsAt) { K.sceneLiberty(t, t - S.montage); K.vignette(0.6); K.landmarkTag('NEW YORK', 'Statue of Liberty', t - S.montage); }
+  else if (t < S.montageWall) { K.scenePyramids(t, t - pyramidsAt); K.vignette(0.6); K.landmarkTag('GIZA, EGYPT', 'Great Pyramids', t - pyramidsAt); }
+  else if (t < teaseAt) { K.sceneGreatWall(t, t - S.montageWall, 0); K.vignette(0.6); K.landmarkTag('NORTHERN CHINA', 'Great Wall', t - S.montageWall); }
+  else if (t < S.title) spaceTease(t, t - teaseAt, S.title - teaseAt);
+  else if (t < S.paris) titleCard(t, t - S.title, S.paris - S.title);
+  else {
+    const u = clamp((t - S.riseStart) / (S.riseEnd - S.riseStart));
+    const inSpace = t >= S.riseEnd;
+    const speed = u > 0 && u < 1 ? Math.sin(Math.PI * clamp(u * 1.15)) : 0;
+    ctx.save();
+    if (speed > 0) { const r = K.rng(f * 7 + 1); ctx.translate((r() - 0.5) * 6 * speed, (r() - 0.5) * 6 * speed); }
+    if (!inSpace) {
+      K.sceneParis(t, t - S.paris, u);
+      // the real Earth fades in as the camera tilts down
+      const ue = smooth(0.3, 1, u);
+      if (ue > 0) drawOrbit(t - S.riseEnd + 40, lerp(-7, 12.8, easeInOut(ue)), smooth(0.3, 0.5, u));
+      K.speedLines(t, speed * smooth(0.05, 0.25, u));
+      K.riseClouds(u);
+    } else {
+      ctx.save(); push(0, 6, t - S.riseEnd, 1.0, 1.04, 960, 760); drawOrbit(t - S.riseEnd + 40); ctx.restore();
+    }
+    // characters
+    const rim = mix('#ff9a5c', ORBIT_RIM, smooth(0.25, 0.75, u));
+    const anticip = smooth(S.riseStart - 1.0, S.riseStart, t);
+    const pa = smooth(S.riseStart - 0.9, S.riseStart - 0.1, t);
+    const floatY = smooth(S.riseStart, S.riseStart + 1.5, t) * Math.sin(t * 1.3) * 5;
+    const lookDown = smooth(S.riseEnd + 0.9, S.riseEnd + 1.9, t);
+    const awe = smooth(S.riseStart + 0.2, S.riseStart + 1.0, t) * (1 - smooth(S.riseEnd - 0.6, S.riseEnd + 0.4, t));
+    const talkToAxis = (t > TL.lines[5].start - 0.2 && t < TL.lines[7].end) ? -0.28 : 0;
+    const look = lookDown * 0.85 + (1 - lookDown) * (talkToAxis * (1 - anticip) + anticip * 0.45 * (1 - awe) - awe * 0.45);
+    const lean = lookDown * 0.55 - awe * 0.08;
+    ctx.save(); if (inSpace) push(0, 6, t - S.riseEnd, 1.0, 1.04, 960, 760);
+    K.convergeParticles(HUMAN.x - 130, HUMAN.y + 16, t, S.riseStart - 1.2, S.riseStart - 0.2);
+    characters(t, f, { floatY, platform: pa, lean, look, rim, ringSpeed: 0.9 + anticip * 5 * (1 - smooth(S.riseStart + 1, S.riseStart + 2.5, t)), glow: anticip * (1 - u), axLook: lookDown > 0.5 ? 0 : -1 });
+    ctx.restore();
+    ctx.restore();
+    if (!inSpace) K.dust(t, `${Math.round(lerp(255, 160, u))},${Math.round(lerp(200, 210, u))},${Math.round(lerp(150, 255, u))}`);
+    K.vignette(0.6);
+    K.altitudeHUD(inSpace ? 400 : 400 * Math.pow(u, 2.4), smooth(S.riseStart - 0.2, S.riseStart + 0.4, t));
+    K.placeTag('EARLIER', 'PARIS, FRANCE', t - S.paris);
+  }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  K.grain(0.08, f);
+  K.captions(TL, t);
+  // cut flashes / fades
+  const fade = smooth(0, 0.35, t) * (1 - smooth(S.end - 0.8, S.end, t));
+  if (fade < 1) { ctx.fillStyle = `rgba(0,0,0,${1 - fade})`; ctx.fillRect(0, 0, W, H); }
+  for (const [at, len] of [[S.title, 0.25], [S.paris, 0.3]]) { const k = 1 - smooth(at, at + len, t); if (t >= at && k > 0) { ctx.fillStyle = `rgba(0,0,0,${k})`; ctx.fillRect(0, 0, W, H); } }
+  return cv.toDataURL('image/png');
+};
+window.ready = true;
+</script>
+</body></html>
