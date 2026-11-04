@@ -3,3 +3,4 @@ build/
 .voices/
 .pydeps/
 __pycache__/
+.pydeps-kokoro/
