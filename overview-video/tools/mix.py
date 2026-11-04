@@ -12,8 +12,9 @@ def main(out_dir):
     end = tl['scenes'].get('end') or tl['frames'] / tl['fps']
     M = tl['scenes']
     inputs, chains, labels = [], [], []
+    count = lambda: sum(1 for a in inputs if a == '-i')  # number of ffmpeg inputs so far
     for ln in tl['lines']:
-        k = len(inputs)
+        k = count()
         inputs += ['-i', os.path.join(out_dir, 'audio', f"l{ln['i']:02d}.wav")]
         ms = int(ln['start'] * 1000)
         chains.append(f'[{k}]adelay={ms}|{ms}[v{k}]')
@@ -22,7 +23,7 @@ def main(out_dir):
     chains.append(''.join(labels) + f'amix=inputs={nv}:normalize=0[vox]')
     fx_labels = []
     for j, s in enumerate(tl.get('sfx', [])):
-        k = len(inputs)
+        k = count()
         if s['type'] == 'pad':
             a, b = M[s['from']], M[s['to']]
             d = b - a
