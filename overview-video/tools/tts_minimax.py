@@ -38,6 +38,8 @@ MFX = {
     'ai': ',chorus=0.7:0.9:18:0.22:0.25:2',
     'robot': ',chorus=0.6:0.85:10|16:0.35|0.3:0.4|0.5:2|2.5,aecho=0.85:0.5:9|17:0.3|0.2,acrusher=bits=12:mix=0.18:samples=1:mode=log,'
              'tremolo=f=55:d=0.12,highpass=f=110,equalizer=f=2800:width_type=o:width=1.2:g=3,acompressor=threshold=-18dB:ratio=3',
+    # lighter: a subtle metallic sheen only, the voice stays natural
+    'robot_light': ',chorus=0.85:0.9:12:0.18:0.3:1.5,aecho=0.9:0.25:10:0.12,highpass=f=90,equalizer=f=3000:width_type=o:width=1.2:g=2,acompressor=threshold=-18dB:ratio=2.5',
 }
 
 
