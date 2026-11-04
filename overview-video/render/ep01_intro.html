@@ -109,7 +109,7 @@ window.render = function (f) {
   }
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   K.grain(0.08, f);
-  K.captions(TL, t);
+  if (!TL.noCaptions) K.captions(TL, t);
   // cut flashes / fades
   const fade = smooth(0, 0.35, t) * (1 - smooth(S.end - 0.8, S.end, t));
   if (fade < 1) { ctx.fillStyle = `rgba(0,0,0,${1 - fade})`; ctx.fillRect(0, 0, W, H); }

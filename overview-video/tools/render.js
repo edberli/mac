@@ -21,6 +21,7 @@ function serve() {
 (async () => {
   const [page, outDir, list] = process.argv.slice(2);
   const tl = JSON.parse(fs.readFileSync(path.join(outDir, 'timeline.json')));
+  if (process.env.NO_CAPTIONS) tl.noCaptions = true;   // captions delivered as YouTube subtitle files instead
   const framesDir = path.join(outDir, 'frames');
   fs.mkdirSync(framesDir, { recursive: true });
   const frames = list ? list.split(',').map(Number) : Array.from({ length: tl.frames }, (_, i) => i);
