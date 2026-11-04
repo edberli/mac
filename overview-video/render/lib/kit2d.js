@@ -38,19 +38,41 @@ export function dust(t, col = '255,200,150') { ctx.save(); ctx.globalCompositeOp
   for (const [x, y, r, ph, sp] of DUST) { const yy = (y - t * 12 * sp + H) % H; ctx.fillStyle = `rgba(${col},${0.2 + 0.15 * Math.sin(t + ph)})`; ctx.beginPath(); ctx.arc(x + Math.sin(t * 0.5 + ph) * 10, yy, r, 0, Math.PI * 2); ctx.fill(); } ctx.restore(); }
 
 // ---------------- human: side profile, facing right; origin = hip on the seat ----------------
-function humanShape(c, t, talk, lean, look) {
-  const breathe = Math.sin(t * 1.6) * 0.006;
-  c.save(); c.rotate(0.06 + lean * 0.22 + breathe);
+// Built from separate pieces (legs, torso, head, near arm) so the arm can be posed with simple IK.
+const ARM = { upper: 70, fore: 62 };
+function torsoAngle(t, lean) { return 0.06 + lean * 0.22 + Math.sin(t * 1.6) * 0.006; }
+function rot([x, y], a) { return [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)]; }
+function taper(c, ax, ay, ar, bx, by, br) {   // tapered capsule from A (radius ar) to B (radius br)
+  const d = Math.hypot(bx - ax, by - ay), ang = Math.atan2(by - ay, bx - ax), off = Math.asin(clamp((ar - br) / d, -1, 1));
+  c.moveTo(ax + Math.cos(ang + Math.PI / 2 + off) * ar, ay + Math.sin(ang + Math.PI / 2 + off) * ar);
+  c.arc(ax, ay, ar, ang + Math.PI / 2 + off, ang - Math.PI / 2 - off);
+  c.arc(bx, by, br, ang - Math.PI / 2 - off, ang + Math.PI / 2 + off);
+  c.closePath();
+}
+function legsPath(c, t) {
   c.beginPath();
-  c.moveTo(-34, 4);
+  c.moveTo(-34, 6); c.bezierCurveTo(-30, -24, 20, -26, 60, -22);              // top of thigh
+  c.bezierCurveTo(92, -20, 114, -18, 118, 0); c.bezierCurveTo(120, 14, 106, 20, 92, 21);
+  c.bezierCurveTo(40, 24, -10, 24, -30, 22); c.closePath(); c.fill(); c.beginPath(); 
+  const sw = Math.sin(t * 1.1) * 0.03;
+  c.save(); c.translate(104, 6); c.rotate(sw);
+  c.moveTo(-15, -6); c.bezierCurveTo(-12, 40, -5, 80, -1, 104); c.lineTo(21, 104);
+  c.bezierCurveTo(20, 76, 22, 36, 16, -4); c.closePath(); c.fill(); c.beginPath(); 
+  c.moveTo(-6, 100); c.bezierCurveTo(-8, 116, 0, 122, 20, 122); c.lineTo(48, 122);   // sneaker
+  c.bezierCurveTo(58, 122, 58, 112, 48, 108); c.bezierCurveTo(36, 104, 28, 98, 22, 96); c.closePath();
+  c.restore();
+}
+function torsoPath(c, t, talk, lean, look) {
+  c.save(); c.rotate(torsoAngle(t, lean));
+  c.beginPath();
+  c.moveTo(-34, 6);
   c.bezierCurveTo(-44, -40, -44, -96, -30, -128);
   c.bezierCurveTo(-22, -146, -8, -158, 6, -160);
   c.bezierCurveTo(22, -160, 34, -150, 38, -134);
   c.bezierCurveTo(44, -104, 44, -60, 38, -26);
-  c.lineTo(36, 0); c.closePath(); c.fill();
-  c.beginPath(); c.moveTo(-26, -136); c.bezierCurveTo(-34, -152, -20, -168, -4, -166); c.lineTo(6, -150); c.closePath(); c.fill();
+  c.lineTo(36, 4); c.closePath(); c.fill(); c.beginPath(); 
+  c.moveTo(-26, -136); c.bezierCurveTo(-34, -152, -20, -168, -4, -166); c.lineTo(6, -150); c.closePath(); c.fill(); c.beginPath();   // hood fold
   c.save(); c.translate(10, -160); c.rotate(look * 0.25 + talk * 0.03 * Math.sin(t * 9));
-  c.beginPath();
   c.moveTo(-10, 2);
   c.bezierCurveTo(-30, -10, -36, -46, -20, -70);
   c.bezierCurveTo(-6, -90, 30, -94, 46, -76);
@@ -59,48 +81,52 @@ function humanShape(c, t, talk, lean, look) {
   c.lineTo(55, -32); c.lineTo(56, -28); c.lineTo(53, -25); c.lineTo(55, -21);
   c.bezierCurveTo(54, -14, 50, -9, 43, -8);
   c.bezierCurveTo(34, -7, 26, -4, 22, 4);
-  c.lineTo(20, 14); c.lineTo(-6, 14); c.closePath(); c.fill();
-  c.beginPath();
-  c.moveTo(-26, -58); c.bezierCurveTo(-34, -84, -6, -104, 22, -98);
-  c.bezierCurveTo(40, -96, 54, -84, 52, -70); c.lineTo(44, -72); c.lineTo(46, -64); c.lineTo(36, -72);
-  c.bezierCurveTo(20, -76, 0, -72, -14, -50); c.closePath(); c.fill();
+  c.lineTo(20, 14); c.lineTo(-6, 14); c.closePath(); c.fill(); c.beginPath(); 
+  // hair: cap over the skull with a soft fringe and a few tufts (stays above the ear)
+  c.moveTo(-30, -44); c.bezierCurveTo(-36, -66, -26, -88, -4, -96);
+  c.lineTo(4, -99); c.lineTo(10, -97); c.lineTo(17, -100); c.lineTo(23, -97);
+  c.bezierCurveTo(38, -96, 52, -86, 54, -72);
+  c.bezierCurveTo(50, -70, 46, -66, 44, -60); c.lineTo(40, -68);
+  c.bezierCurveTo(28, -78, 6, -78, -10, -66); c.bezierCurveTo(-18, -58, -22, -50, -24, -40); c.closePath();
   c.restore();
-  c.beginPath();
-  c.moveTo(-6, -140); c.bezierCurveTo(-18, -110, -12, -70, 4, -52);
-  c.bezierCurveTo(18, -40, 50, -34, 76, -26); c.lineTo(82, -14);
-  c.bezierCurveTo(56, -16, 20, -20, -6, -36); c.bezierCurveTo(-26, -60, -28, -110, -18, -142); c.closePath(); c.fill();
-  c.beginPath(); c.ellipse(86, -20, 13, 9, 0.2, 0, Math.PI * 2); c.fill();
-  c.restore();
-  c.beginPath();
-  c.moveTo(-34, 6); c.bezierCurveTo(-30, -24, 20, -26, 60, -20);
-  c.bezierCurveTo(90, -18, 112, -16, 116, 0); c.bezierCurveTo(118, 14, 104, 20, 90, 20);
-  c.lineTo(-30, 22); c.closePath(); c.fill();
-  const sw = Math.sin(t * 1.1) * 0.05;
-  c.save(); c.translate(102, 6); c.rotate(sw);
-  c.beginPath(); c.moveTo(-14, -6); c.bezierCurveTo(-10, 40, -4, 80, 0, 106); c.lineTo(22, 106);
-  c.bezierCurveTo(20, 76, 22, 36, 16, -4); c.closePath(); c.fill();
-  c.beginPath(); c.moveTo(-6, 102); c.bezierCurveTo(-8, 118, 0, 124, 20, 124); c.lineTo(48, 124);
-  c.bezierCurveTo(58, 124, 58, 114, 48, 110); c.bezierCurveTo(36, 106, 28, 100, 22, 98); c.closePath(); c.fill();
   c.restore();
 }
-export function drawHuman(x, y, t, talk, lean, look, rim, body = '#0b070c') {
+// near arm: shoulder follows the torso, hand stays on the knee; elbow solved with 2-bone IK
+function armPath(c, t, lean, hand) {
+  const [sx, sy] = rot([6, -132], torsoAngle(t, lean));
+  const [hx, hy] = hand;
+  const d = Math.min(Math.hypot(hx - sx, hy - sy), ARM.upper + ARM.fore - 1);
+  const base = Math.atan2(hy - sy, hx - sx);
+  const cosA = (ARM.upper * ARM.upper + d * d - ARM.fore * ARM.fore) / (2 * ARM.upper * d);
+  const ea = base + Math.acos(clamp(cosA, -1, 1));            // elbow bends back/down
+  const ex = sx + Math.cos(ea) * ARM.upper, ey = sy + Math.sin(ea) * ARM.upper;
+  const fa = Math.atan2(hy - ey, hx - ex);
+  c.beginPath();
+  taper(c, sx, sy, 14, ex, ey, 10.5); c.fill(); c.beginPath(); // upper arm (hoodie sleeve)
+  taper(c, ex, ey, 10.5, hx, hy, 7.5); c.fill(); c.beginPath(); // forearm
+  // hand: palm + fingers draped over the knee, thumb on top
+  c.save(); c.translate(hx, hy); c.rotate(fa + 0.5);
+  c.moveTo(-2, -7); c.bezierCurveTo(6, -9, 16, -9, 22, -5);          // back of hand
+  c.bezierCurveTo(28, -1, 31, 6, 28, 10);                           // fingertips curling over the knee
+  c.bezierCurveTo(24, 12, 16, 9, 10, 8); c.lineTo(-2, 7); c.closePath(); c.fill(); c.beginPath(); 
+  c.moveTo(14, -7); c.bezierCurveTo(18, -12, 24, -11, 25, -8); c.bezierCurveTo(22, -6, 18, -5, 14, -7); c.closePath();  // thumb
+  c.restore();
+}
+const HS = 2, HOX = 80, HOY = 300;   // offscreen supersampling and origin
+const hBody = offscreen(300 * HS, 460 * HS, () => {}), hArm = offscreen(300 * HS, 460 * HS, () => {}), hTint = offscreen(300 * HS, 460 * HS, () => {});
+function maskTo(cv, draw) { const c = cv.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height);
+  c.setTransform(HS, 0, 0, HS, HOX * HS, HOY * HS); c.fillStyle = '#000'; draw(c); }
+function tinted(src, color) { const c = hTint.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.globalCompositeOperation = 'source-over';
+  c.clearRect(0, 0, hTint.width, hTint.height); c.drawImage(src, 0, 0); c.globalCompositeOperation = 'source-in'; c.fillStyle = color; c.fillRect(0, 0, hTint.width, hTint.height); c.globalCompositeOperation = 'source-over'; return hTint; }
+function blit(cv, dx, dy) { ctx.drawImage(cv, -HOX + dx, -HOY + dy, cv.width / HS, cv.height / HS); }
+export function drawHuman(x, y, t, talk, lean, look, rim, body = '#0b070c', hand = [84, -27]) {
+  maskTo(hBody, c => { legsPath(c, t); c.fill(); torsoPath(c, t, talk, lean, look); c.fill(); armPath(c, t, lean, hand); c.fill(); });
+  maskTo(hArm, c => { armPath(c, t, lean, hand); c.fill(); });
   ctx.save(); ctx.translate(x, y);
-  ctx.save(); ctx.translate(3, -2); ctx.fillStyle = rim; humanShape(ctx, t, talk, lean, look); ctx.restore();
-  ctx.fillStyle = body; humanShape(ctx, t, talk, lean, look);
-  ctx.save(); ctx.rotate(0.06 + lean * 0.22 + Math.sin(t * 1.6) * 0.006); ctx.strokeStyle = hexA(mix(rim, rim, 0), 0.35); ctx.lineWidth = 1.6; ctx.beginPath();
-  ctx.moveTo(-6, -140); ctx.bezierCurveTo(-18, -110, -12, -70, 4, -52); ctx.bezierCurveTo(18, -40, 50, -34, 76, -26); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(-6, -36); ctx.bezierCurveTo(20, -20, 56, -16, 80, -14); ctx.stroke();
-  // near arm (closest to camera): upper arm down from the shoulder, forearm braced on the seat in front of the hip
-  const nearArm = () => { ctx.beginPath();
-    ctx.moveTo(-8, -146); ctx.bezierCurveTo(-14, -120, -4, -92, 14, -74);   // back of upper arm
-    ctx.bezierCurveTo(26, -56, 34, -30, 40, -6);                           // back of forearm
-    ctx.lineTo(60, -2); ctx.bezierCurveTo(64, 4, 58, 10, 48, 10); ctx.lineTo(30, 8); // hand on the seat
-    ctx.bezierCurveTo(24, -18, 18, -44, 6, -62);                           // front of forearm
-    ctx.bezierCurveTo(-8, -80, -22, -100, -22, -126); ctx.closePath(); };
-  ctx.save(); ctx.translate(2.5, -1.5); nearArm(); ctx.fillStyle = rim; ctx.fill(); ctx.restore();
-  nearArm(); ctx.fillStyle = body; ctx.fill();
-  ctx.strokeStyle = hexA(mix(rim, rim, 0), 0.55); ctx.lineWidth = 1.5; ctx.stroke();
-  ctx.restore();
+  blit(tinted(hBody, rim), 3, -2);        // rim light along the outer silhouette only
+  blit(tinted(hBody, body), 0, 0);
+  ctx.globalAlpha = 0.75; blit(tinted(hArm, rim), 1.8, -1.4); ctx.globalAlpha = 1;   // thin edge so the arm reads over the torso
+  blit(tinted(hArm, body), 0, 0);
   ctx.restore();
 }
 
@@ -364,3 +390,78 @@ function tag(text, sub, a) {
 }
 export function landmarkTag(text, sub, local) { tag(text, sub, smooth(0.15, 0.45, local) * (1 - smooth(1.4, 1.7, local))); }
 export function placeTag(text, sub, local) { tag(text, sub, smooth(0.2, 0.6, local) * (1 - smooth(2.2, 2.7, local))); }
+
+// ---------------- orbital observation deck (drawn over the Earth render) ----------------
+// window: chamfered panoramic opening split into three panes; shutter: 0 = closed, 1 = fully open
+const WIN = { x0: 170, x1: 1750, y0: 96, y1: 790, ch: 70, mull: [700, 1220] };
+function winPath(c, inset = 0) {
+  const { x0, x1, y0, y1, ch } = WIN, i = inset;
+  c.moveTo(x0 + ch + i, y0 + i); c.lineTo(x1 - ch - i, y0 + i); c.lineTo(x1 - i, y0 + ch + i); c.lineTo(x1 - i, y1 - ch * 0.5 - i);
+  c.lineTo(x1 - ch * 0.5 - i, y1 - i); c.lineTo(x0 + ch * 0.5 + i, y1 - i); c.lineTo(x0 + i, y1 - ch * 0.5 - i); c.lineTo(x0 + i, y0 + ch + i); c.closePath();
+}
+const LEDS = (() => { const r = rng(61); return Array.from({ length: 26 }, () => [r() < 0.5 ? 30 + r() * 110 : 1790 + r() * 110, 140 + r() * 640, r() < 0.7 ? '#7ff3ff' : '#ffb347', r() * 6]); })();
+export function deckBack(t, shutter, glowCol = '#8fc4ff') {
+  // glass: faint tint + reflections (over the Earth, under the frame)
+  ctx.save(); ctx.beginPath(); winPath(ctx); ctx.clip();
+  ctx.fillStyle = 'rgba(40,70,110,0.08)'; ctx.fillRect(0, 0, W, H);
+  ctx.globalCompositeOperation = 'lighter';
+  for (const [x, w, a] of [[420, 180, 0.05], [560, 40, 0.06], [1380, 260, 0.035]]) {
+    const g = ctx.createLinearGradient(x, 0, x + w, 0); g.addColorStop(0, 'rgba(200,225,255,0)'); g.addColorStop(0.5, `rgba(200,225,255,${a})`); g.addColorStop(1, 'rgba(200,225,255,0)');
+    ctx.save(); ctx.translate(x, 0); ctx.transform(1, 0, -0.35, 1, 0, 0); ctx.translate(-x, 0); ctx.fillStyle = g; ctx.fillRect(x, 0, w, H); ctx.restore(); }
+  ctx.globalCompositeOperation = 'source-over';
+  // shutter slats retract upward, staggered from the bottom
+  const N = 12, slatH = (WIN.y1 - WIN.y0) / N;
+  for (let k = 0; k < N; k++) {
+    const e = easeInOut(clamp(shutter * 1.6 - (N - 1 - k) / N * 0.6));   // lower slats start first
+    const h = slatH * (1 - e), top = WIN.y0 + k * slatH * (1 - e);
+    if (h <= 0.3) continue;
+    ctx.fillStyle = '#0c1018'; ctx.fillRect(WIN.x0, top, WIN.x1 - WIN.x0, h - 1.5);
+    const sg = ctx.createLinearGradient(0, top, 0, top + h); sg.addColorStop(0, 'rgba(160,190,230,0.10)'); sg.addColorStop(1, 'rgba(0,0,0,0.25)');
+    ctx.fillStyle = sg; ctx.fillRect(WIN.x0, top, WIN.x1 - WIN.x0, h - 1.5);
+    if (shutter > 0) { ctx.fillStyle = `rgba(170,215,255,${0.4 * (1 - e)})`; ctx.fillRect(WIN.x0, top + h - 1.5, WIN.x1 - WIN.x0, 1.5); }
+  }
+  ctx.restore();
+  // interior: everything outside the window opening
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, H); winPath(ctx); ctx.clip('evenodd');
+  const wall = ctx.createRadialGradient(960, 520, 300, 960, 520, 1150); wall.addColorStop(0, '#141a26'); wall.addColorStop(1, '#05070b');
+  ctx.fillStyle = wall; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(150,180,220,0.07)'; ctx.lineWidth = 1.5;
+  for (const x of [60, 150, 1770, 1860]) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (const y of [60, 300, 560]) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(150, y); ctx.moveTo(1770, y); ctx.lineTo(W, y); ctx.stroke(); }
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const [x, y, col, ph] of LEDS) { ctx.fillStyle = hexA(col, 0.45 + 0.35 * Math.sin(t * 1.5 + ph)); ctx.fillRect(x, y, 6, 3); }
+  ctx.restore();
+  ctx.restore();
+  // window frame: thick bezel with inner bevel lit by the Earth
+  ctx.save(); ctx.beginPath(); winPath(ctx, -26); winPath(ctx); ctx.fillStyle = '#0b0e15'; ctx.fill('evenodd');
+  ctx.strokeStyle = hexA(glowCol, 0.55 * clamp(shutter * 1.5)); ctx.lineWidth = 2; ctx.beginPath(); winPath(ctx, 1); ctx.stroke();
+  ctx.strokeStyle = 'rgba(180,200,230,0.12)'; ctx.lineWidth = 1.5; ctx.beginPath(); winPath(ctx, -26); ctx.stroke();
+  for (const mx of WIN.mull) { ctx.fillStyle = '#0b0e15'; ctx.fillRect(mx - 9, WIN.y0, 18, WIN.y1 - WIN.y0);
+    ctx.fillStyle = hexA(glowCol, 0.4 * clamp(shutter * 1.5)); ctx.fillRect(mx + 8, WIN.y0 + 20, 1.5, WIN.y1 - WIN.y0 - 40); }
+  // bolts on the bezel
+  ctx.fillStyle = 'rgba(160,180,210,0.18)';
+  for (let k = 0; k < 14; k++) { const x = lerp(WIN.x0 + 90, WIN.x1 - 90, k / 13); ctx.beginPath(); ctx.arc(x, WIN.y0 - 13, 2.2, 0, Math.PI * 2); ctx.arc(x, WIN.y1 + 13, 2.2, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+  // window sill / bench the human sits on (top surface at y = 822)
+  ctx.save();
+  ctx.fillStyle = '#0a0d14'; ctx.fillRect(0, 822, W, H - 822);
+  const sill = ctx.createLinearGradient(0, 812, 0, 836); sill.addColorStop(0, '#1a2130'); sill.addColorStop(1, '#0a0d14');
+  ctx.fillStyle = sill; ctx.fillRect(0, 812, W, 24);
+  ctx.fillStyle = hexA(glowCol, 0.5 * clamp(shutter * 1.5)); ctx.fillRect(0, 811, W, 1.6);
+  const spill = ctx.createRadialGradient(960, 820, 0, 960, 820, 900); spill.addColorStop(0, hexA(glowCol, 0.10 * shutter)); spill.addColorStop(1, hexA(glowCol, 0));
+  ctx.fillStyle = spill; ctx.fillRect(0, 812, W, H - 812);
+  ctx.strokeStyle = 'rgba(150,180,220,0.06)'; ctx.lineWidth = 1; for (let x = 0; x < W; x += 160) { ctx.beginPath(); ctx.moveTo(x, 840); ctx.lineTo(x, H); ctx.stroke(); }
+  ctx.restore();
+}
+// light ring that wraps the characters before AXIS "jumps" them to orbit
+export function jumpRing(cx, cy, k, t) {
+  if (k <= 0) return;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const rx = lerp(90, 520, easeInOut(k)), ry = lerp(18, 300, easeInOut(k));
+  for (let j = 0; j < 3; j++) {
+    ctx.strokeStyle = `rgba(127,243,255,${(0.7 - j * 0.2) * Math.min(1, k * 3)})`; ctx.lineWidth = 3 - j; ctx.shadowColor = EYE; ctx.shadowBlur = 20;
+    ctx.beginPath(); ctx.ellipse(cx, cy, rx * (1 + j * 0.08), ry * (1 + j * 0.08), Math.sin(t * 3 + j) * 0.1, 0, Math.PI * 2); ctx.stroke(); }
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rx); g.addColorStop(0, `rgba(127,243,255,${0.18 * k})`); g.addColorStop(1, 'rgba(127,243,255,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
