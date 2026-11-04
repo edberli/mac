@@ -1,5 +1,9 @@
 # EP01 上載資料（YouTube）
 
+## 上載紀錄
+- 2026-11-05 已公開：https://youtu.be/zZHUrRrt-Ng （頻道 WaitWhat）
+- 語言軌道（普通話音軌、字幕、中文標題）：處理中，以 Studio 語言頁為準
+
 上載檔案：`build/ep01_full_v2.mp4`（已內嵌英文字幕，1920×1080、每秒 30 格、3 分 21 秒）
 縮圖：`publish/ep01_thumbnail_A.jpg`（建議）或 `publish/ep01_thumbnail_B.jpg`
 字幕：`publish/ep01.en.srt`（英文）、`publish/ep01.zh-Hans.srt`（簡體中文）、`publish/ep01.zh-Hant.srt`（繁體中文）
