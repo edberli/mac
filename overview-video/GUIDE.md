@@ -43,6 +43,7 @@
 ## 4. 配音（MiniMax，國際版 api.minimax.io）
 
 - 金鑰：環境變數 `MINIMAX_API_KEY`。**絕對唔可以寫入任何檔案或者資料庫**。
+- 地址：金鑰前綴 `sk-cp-` 係中國區帳戶，要加環境變數 `MINIMAX_BASE=https://api.minimaxi.com`；連國際版會出「invalid api key」（2026-11-05 實測）。
 - 英文（已確認）：
   - 人類：`English_FriendlyPerson`
   - AXIS：`English_Gentle-voiced_man`，加 `robot` 電子效果。用戶試過輕版（`robot_light`），**覺得原本較重嘅好啲**。

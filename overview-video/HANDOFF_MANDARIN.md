@@ -1,4 +1,6 @@
-# 交接：EP01 普通話配音（未完成）
+# 交接：EP01 普通話配音（音軌已完成，2026-11-05）
+
+**現況**：`publish/ep01.audio.zh.m4a` 已生成（201.19 秒，用戶揀定人類 `Chinese (Mandarin)_Gentle_Youth`、AXIS `Chinese (Mandarin)_Gentleman`＋`robot` 效果）。要連 `MINIMAX_BASE=https://api.minimaxi.com`。以下係當時嘅步驟紀錄。
 
 ## 目標
 
