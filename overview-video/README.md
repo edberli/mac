@@ -14,6 +14,7 @@
 | `render/lib/earth.js` | 立體真實地球（three.js 立體繪圖庫）：日間影像、雲層、夜間燈光、海面反光、大氣層、太陽 |
 | `tools/` | 製作工具：配音、時間軸、渲染、混音、一鍵建置 |
 | `assets/textures/` | 地球同星空相片素材（出處見 `assets/textures/CREDITS.md`） |
+| `assets/brand/` | 頻道素材：Wait What 片頭（5 秒） |
 | `prototypes/` | 早期造型同畫風測試（機械人造型表、三種畫風試片） |
 | `build/` | 輸出（唔會存入資料庫，可以隨時重新產生） |
 
@@ -36,7 +37,8 @@ tools/build.sh ep01_intro
 2. `tools/timeline.py`：按配音長度計出每句對白同每個場景嘅時間，同埋講嘢時嘅音量變化（用嚟郁角色）
 3. `tools/render.js`：用無頭瀏覽器逐格渲染畫面（每秒 30 格，1920×1080）
 4. `tools/mix.py`：混合配音、背景低音、轉場重音、升空風聲（全部係臨時合成音效）
-5. `ffmpeg`：合成最終 MP4
+5. `ffmpeg`：合成動畫部分 MP4
+6. `tools/assemble.py`：喺指定場景位置插入預先做好嘅片段（例如頻道片頭），輸出 `build/<段落>/<段落>_final.mp4`
 
 只改畫面、唔改對白時，可以跳過配音：
 
@@ -50,6 +52,7 @@ tools/build.sh ep01_intro --no-tts
 - `{"say": "H", "text": "..."}`：人類講嘢；`"A"` 係 AXIS
 - `{"pause": 0.3}`：停頓（秒）
 - `{"mark": "名稱"}`：場景切換點，畫面程式會用呢個名稱決定幾時轉場
+- `"inserts"`：插入片段，例如 `{"file": "assets/brand/wait-what-intro-5s.mp4", "at": "paris", "gain_db": 11}` 即係喺 `paris` 場景之前插入頻道片頭，並提高 11 分貝音量
 
 ## 重要提示
 

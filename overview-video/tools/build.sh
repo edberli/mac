@@ -12,4 +12,5 @@ node tools/render.js "render/$EP.html" "$OUT"
 python3 tools/mix.py "$OUT"
 ffmpeg -v error -y -framerate 30 -i "$OUT/frames/f%05d.png" -i "$OUT/mix.wav" \
   -c:v libx264 -pix_fmt yuv420p -crf 20 -preset slow -c:a aac -b:a 192k -shortest "$OUT/$EP.mp4"
-echo "built $OUT/$EP.mp4"
+python3 tools/assemble.py "script/$EP.json" "$OUT"
+echo "built $OUT/${EP}_final.mp4"
