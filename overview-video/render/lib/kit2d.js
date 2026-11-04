@@ -89,7 +89,18 @@ export function drawHuman(x, y, t, talk, lean, look, rim, body = '#0b070c') {
   ctx.fillStyle = body; humanShape(ctx, t, talk, lean, look);
   ctx.save(); ctx.rotate(0.06 + lean * 0.22 + Math.sin(t * 1.6) * 0.006); ctx.strokeStyle = hexA(mix(rim, rim, 0), 0.35); ctx.lineWidth = 1.6; ctx.beginPath();
   ctx.moveTo(-6, -140); ctx.bezierCurveTo(-18, -110, -12, -70, 4, -52); ctx.bezierCurveTo(18, -40, 50, -34, 76, -26); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(-6, -36); ctx.bezierCurveTo(20, -20, 56, -16, 80, -14); ctx.stroke(); ctx.restore();
+  ctx.beginPath(); ctx.moveTo(-6, -36); ctx.bezierCurveTo(20, -20, 56, -16, 80, -14); ctx.stroke();
+  // near arm (closest to camera): upper arm down from the shoulder, forearm braced on the seat in front of the hip
+  const nearArm = () => { ctx.beginPath();
+    ctx.moveTo(-8, -146); ctx.bezierCurveTo(-14, -120, -4, -92, 14, -74);   // back of upper arm
+    ctx.bezierCurveTo(26, -56, 34, -30, 40, -6);                           // back of forearm
+    ctx.lineTo(60, -2); ctx.bezierCurveTo(64, 4, 58, 10, 48, 10); ctx.lineTo(30, 8); // hand on the seat
+    ctx.bezierCurveTo(24, -18, 18, -44, 6, -62);                           // front of forearm
+    ctx.bezierCurveTo(-8, -80, -22, -100, -22, -126); ctx.closePath(); };
+  ctx.save(); ctx.translate(2.5, -1.5); nearArm(); ctx.fillStyle = rim; ctx.fill(); ctx.restore();
+  nearArm(); ctx.fillStyle = body; ctx.fill();
+  ctx.strokeStyle = hexA(mix(rim, rim, 0), 0.55); ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.restore();
   ctx.restore();
 }
 
@@ -106,6 +117,13 @@ export function drawAxis(x, y, t, talk, p, look = -1, scale = 0.82) {
     c.lineTo(32, 176); c.quadraticCurveTo(28, 184, 20, 184); c.lineTo(-20, 184); c.quadraticCurveTo(-28, 184, -32, 176); c.closePath();
     rrect(c, -66, -48, 132, 104, 46);
     for (const s of [-1, 1]) { const hy = 112 + Math.sin(t * 2 + s) * 5; rrect(c, s * 96 - 13, hy - 24, 26, 48, 13); } };
+  // orbit ring around the head: back half first (hidden by the head), front half after the face
+  const ra = t * (p.ringSpeed || 0.9), RX = 106, RY = 24, RCY = 4, RROT = -0.16;
+  const ringArc = (from, to) => { c.save(); c.translate(0, RCY); c.rotate(RROT); c.strokeStyle = hexA(p.eye, 0.55 + glow * 0.4); c.lineWidth = 2.2 + glow * 1.5;
+    c.shadowColor = p.eye; c.shadowBlur = 8; c.beginPath(); c.ellipse(0, 0, RX, RY, 0, from, to); c.stroke(); c.restore(); };
+  const ringDot = () => { c.save(); c.translate(0, RCY); c.rotate(RROT); c.shadowColor = p.eye; c.shadowBlur = 16; c.fillStyle = p.eye; c.beginPath(); c.arc(Math.cos(ra) * RX, Math.sin(ra) * RY, 5, 0, Math.PI * 2); c.fill(); c.restore(); };
+  const dotFront = Math.sin(ra) > 0;
+  ringArc(Math.PI, Math.PI * 2); if (!dotFront) ringDot();
   c.save(); c.translate(p.rimDx, p.rimDy); body(); c.fillStyle = p.rim; c.fill(); c.restore();
   body(); c.fillStyle = p.body; c.fill();
   c.save(); body(); c.clip(); const sg = c.createLinearGradient(-70, 0, 70, 0); sg.addColorStop(0, 'rgba(0,0,0,0.35)'); sg.addColorStop(1, 'rgba(255,255,255,0.03)'); c.fillStyle = sg; c.fillRect(-120, -60, 240, 260); c.restore();
@@ -115,9 +133,7 @@ export function drawAxis(x, y, t, talk, p, look = -1, scale = 0.82) {
   for (const s of [-1, 1]) { c.beginPath(); rrect(c, s * 22 - 13 + look * 6, 1 - eh / 2, 26, eh, eh / 2); c.fill(); }
   c.restore();
   c.save(); c.shadowColor = p.eye; c.shadowBlur = 18 + glow * 20; c.fillStyle = p.eye; c.globalAlpha = Math.min(1, 0.45 + 0.55 * talk + glow); c.beginPath(); c.arc(0, 108, 9, 0, Math.PI * 2); c.fill(); c.restore();
-  const a = t * (p.ringSpeed || 0.9); c.save(); c.rotate(-0.2);
-  c.strokeStyle = hexA(p.eye, 0.5 + glow * 0.4); c.lineWidth = 2 + glow * 1.5; c.beginPath(); c.ellipse(0, 0, 100, 18, 0, 0, Math.PI * 2); c.stroke();
-  c.shadowColor = p.eye; c.shadowBlur = 16; c.fillStyle = p.eye; c.beginPath(); c.arc(Math.cos(a) * 100, Math.sin(a) * 18, 5, 0, Math.PI * 2); c.fill(); c.restore();
+  ringArc(0, Math.PI); if (dotFront) ringDot();
   ctx.restore();
 }
 
@@ -125,13 +141,13 @@ export function drawAxis(x, y, t, talk, p, look = -1, scale = 0.82) {
 export function platform(x, y, a, t) {
   if (a <= 0) return;
   ctx.save(); ctx.globalAlpha = a; ctx.globalCompositeOperation = 'lighter';
-  const g = ctx.createRadialGradient(x, y, 0, x, y, 240); g.addColorStop(0, 'rgba(127,243,255,0.22)'); g.addColorStop(1, 'rgba(127,243,255,0)');
-  ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, y, 240, 32, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = 'rgba(127,243,255,0.85)'; ctx.lineWidth = 2; ctx.shadowColor = EYE; ctx.shadowBlur = 14;
+  ctx.strokeStyle = 'rgba(127,243,255,0.75)'; ctx.lineWidth = 1.6; ctx.shadowColor = EYE; ctx.shadowBlur = 10;
   ctx.beginPath(); ctx.ellipse(x, y, 220, 28, 0, 0, Math.PI * 2); ctx.stroke();
-  ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(127,243,255,0.3)';
-  for (let k = 1; k < 4; k++) { ctx.beginPath(); ctx.ellipse(x, y, 220 * k / 4, 28 * k / 4, 0, 0, Math.PI * 2); ctx.stroke(); }
-  const a2 = t * 0.8; ctx.beginPath(); ctx.moveTo(x + Math.cos(a2) * 220, y + Math.sin(a2) * 28); ctx.lineTo(x - Math.cos(a2) * 220, y - Math.sin(a2) * 28); ctx.stroke();
+  ctx.shadowBlur = 0; ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(127,243,255,0.16)';
+  ctx.beginPath(); ctx.ellipse(x, y, 165, 21, 0, 0, Math.PI * 2); ctx.stroke();
+  // rotating tick marks on the rim
+  ctx.strokeStyle = 'rgba(127,243,255,0.6)'; ctx.lineWidth = 2;
+  for (let k = 0; k < 24; k++) { const a2 = k / 24 * Math.PI * 2 + t * 0.6; ctx.beginPath(); ctx.ellipse(x, y, 220, 28, 0, a2, a2 + 0.06); ctx.stroke(); }
   ctx.restore();
 }
 const PARTS = (() => { const r = rng(31); return Array.from({ length: 90 }, () => [r() * Math.PI * 2, 200 + r() * 500, r() * 0.5]); })();
