@@ -27,6 +27,11 @@ EPCFG = {
     'ep01_game_night': dict(assets=[f'{ROOT}/assets'], audio=f'{ROOT}/audio_v4', out=f'{BUILD}/game_night_v4.mp4'),
     'ep02_on_hold': dict(assets=[f'{ROOT}/assets_ep02', f'{ROOT}/assets'], audio=f'{ROOT}/audio_ep02', out=f'{BUILD}/on_hold_v1.mp4'),
     'ep03_apology': dict(assets=[f'{ROOT}/assets_ep03', f'{ROOT}/assets'], audio=f'{ROOT}/audio_ep03', out=f'{BUILD}/apology_v1.mp4'),
+    # ep06: new assets first, then the no-selfie-stick Marcus (assets_leads), then older plates (bg_sofa_close).
+    # WW_EXTRA_ASSETS=dir1:dir2 appends fallback dirs (placeholder tests only; real assets always win).
+    # end_tag: appended once after the body (concat, ep06 only), first end_tag_secs seconds of brand/end_tag.mp4.
+    'ep06_grandfather_auto': dict(assets=[f'{ROOT}/assets_ep06', f'{ROOT}/assets_leads', f'{ROOT}/assets'], audio=f'{ROOT}/audio_ep06', out=f'{BUILD}/grandfather_v1_phone.mp4',
+                                  end_tag=f'{SHORTS}/brand/end_tag.mp4', end_tag_secs=1.5),
 }
 # set by configure()
 EPNAME = 'ep01_game_night'
@@ -39,7 +44,8 @@ def configure(ep):
     if ep not in EPCFG:
         raise SystemExit(f'unknown episode {ep}; known: {list(EPCFG)}')
     c = EPCFG[ep]
-    EPNAME, BEATS, AUDIO, OUT_MP4, ASSET_DIRS = ep, f'{SHORTS}/{ep}/beats.json', c['audio'], c['out'], c['assets']
+    EPNAME, BEATS, AUDIO, OUT_MP4, ASSET_DIRS = ep, f'{SHORTS}/{ep}/beats.json', c['audio'], c['out'], list(c['assets'])
+    ASSET_DIRS += [d for d in os.environ.get('WW_EXTRA_ASSETS', '').split(':') if d]
 
 
 def asset_path(name):
@@ -57,6 +63,23 @@ configure('ep01_game_night')
 EYE_OVERRIDES = {'russell': [(450, 435.5, 70, 50), (614.5, 387.5, 69, 52)],
                  'marcus': [(358, 368, 79, 79), (511, 325, 77, 77)],
                  'marcus_jump': [(410, 428, 74, 74), (547, 387, 74, 74)]}
+# Per-episode overrides, looked up before the global tables so older episodes are untouched.
+# ep06: Marcus without selfie stick; new jump image; new box / sofa puppets are auto-detected unless measured here.
+EYE_OVERRIDES_EP = {
+    'ep06_grandfather_auto': {'marcus_jump': [(438, 468, 72, 72), (575, 430, 72, 72)],
+                              'marcus_box': [(468, 680, 62, 62), (587, 655, 58, 58)],
+                              'neil_box': [(407, 367, 53, 28), (550, 356, 50, 24)]},
+}
+# HIP_EP: absolute source y (inside the cropped puppet). HIP_FRAC_EP: fraction of the cropped puppet height (used until
+# a puppet is measured; run `render.py --ep ep06_grandfather_auto --eyes` and read the cyan hip line, then pin it in HIP_EP).
+# ep06 Russell hip (cropped coords) = top edge of the plaid blanket (lap) for all four stages, so the seat line and the
+# position of the figure are identical in s1..s4 (v2: s1/s2 used to sit 64 px lower).
+HIP_EP = {'ep06_grandfather_auto': {'russell_s1': 860, 'russell_s2': 860, 'russell_s3': 860, 'russell_s4': 860}}
+HIP_FRAC_EP = {
+    # russell_s1..s4 (seated, cropped at the shins): hip = where the shirt hem meets the thighs, ~70% down. Others: same default until measured.
+    'ep06_grandfather_auto': {n: 0.70 for n in ('russell_s1', 'russell_s2', 'russell_s3', 'russell_s4', 'marcus_box', 'neil_box',
+                                                  'marcus_jump', 'marcus', 'russell', 'neil')},
+}
 # Hip line (source y inside the keyed, cropped puppet): waist of trousers / top of skirt / where the dress flares.
 # This is the line that must rest on the seat cushion's top surface.
 HIP = {'dave_down': 850, 'dave_up': 850, 'karen_card': 832, 'karen_nocard': 832, 'linda': 1004, 'tom': 862,
@@ -68,6 +91,7 @@ FACE = {'vince': dict(mouth_dy=1.15, mouth_scale=0.8, oval=True),
 
 FONT_BOLD = ('/System/Library/Fonts/Avenir Next.ttc', 0)      # Avenir Next Bold
 FONT_HEAVY = ('/System/Library/Fonts/Avenir Next.ttc', 8)     # Avenir Next Heavy
+FONT_DIDOT_BOLD = ('/System/Library/Fonts/Supplemental/Didot.ttc', 2)   # ep06 cover title (not the GTA face)
 
 
 def shash(*a):
@@ -158,6 +182,11 @@ class Puppet:
         self.rgb = self.rgb[self.y0:self.y1, self.x0:self.x1]
         self.alpha = self.alpha[self.y0:self.y1, self.x0:self.x1]
         self.h, self.w = self.alpha.shape
+        self.hip = HIP_EP.get(EPNAME, {}).get(name)
+        if self.hip is None and name in HIP_FRAC_EP.get(EPNAME, {}):
+            self.hip = int(round(HIP_FRAC_EP[EPNAME][name] * self.h))
+        if self.hip is None:
+            self.hip = HIP.get(name)
         if not eyes:
             self.eyes, self.ex, self.ey, self.spacing, self.erx, self.ery, self.eyew, self.headw = (), self.w / 2, 0, 0, 0, 0, 0, self.w
             return
@@ -200,8 +229,9 @@ class Puppet:
         return fg, a
 
     def detect_eyes(self):
-        if self.name in EYE_OVERRIDES:
-            return tuple((cx - self.x0, cy - self.y0, rx, ry) for (cx, cy, rx, ry) in EYE_OVERRIDES[self.name])
+        ov = EYE_OVERRIDES_EP.get(EPNAME, {}).get(self.name) or EYE_OVERRIDES.get(self.name)
+        if ov:
+            return tuple((cx - self.x0, cy - self.y0, rx, ry) for (cx, cy, rx, ry) in ov)
         rgb, a = self.rgb, self.alpha
         mn = rgb.min(axis=2)
         sat = rgb.max(axis=2) - mn
@@ -221,11 +251,15 @@ class Puppet:
             cands.append((area, (xs.min() + xs.max() + 1) / 2, (ys.min() + ys.max() + 1) / 2, bw / 2, bh / 2))
         cands.sort(reverse=True)
         best = None
-        for i in range(len(cands)):
-            for j in range(i + 1, len(cands)):
-                A, B = cands[i], cands[j]
-                if abs(A[2] - B[2]) < 0.25 * max(A[4], B[4]) * 2 and 0.6 < A[0] / B[0] < 1.6:
-                    best = (A, B)
+        # second pass (only when the strict one finds nothing, so existing puppets keep their detection): tilted heads
+        for tol in (0.25, 0.45, 0.6):
+            for i in range(len(cands)):
+                for j in range(i + 1, len(cands)):
+                    A, B = cands[i], cands[j]
+                    if abs(A[2] - B[2]) < tol * max(A[4], B[4]) * 2 and 0.6 < A[0] / B[0] < 1.6:
+                        best = (A, B)
+                        break
+                if best:
                     break
             if best:
                 break
@@ -252,8 +286,8 @@ class Puppet:
             d.ellipse([cx - rx, cy - ry, cx + rx, cy + ry], outline=(255, 0, 0), width=3)
             r = 0.32 * (rx + ry) / 2
             d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(0, 0, 0))
-        if self.name in HIP:
-            d.line([0, HIP[self.name], self.w, HIP[self.name]], fill=(0, 255, 255), width=4)
+        if self.hip is not None:
+            d.line([0, self.hip, self.w, self.hip], fill=(0, 255, 255), width=4)
         d.line([self.ex - self.headw / 2, self.ey, self.ex + self.headw / 2, self.ey], fill=(0, 0, 255), width=3)
         d.ellipse([self.ex - 6, self.ey - 6, self.ex + 6, self.ey + 6], fill=(0, 0, 255))
         my = self.ey + 1.1 * self.eyew
@@ -447,8 +481,8 @@ class Sprite:
         self.eyew = pup.eyew * scale
         self.feet_y = Y + (pup.h - pup.ey) * scale
         self.foot_cx = X + (pup.w / 2 - pup.ex) * scale
-        if pup.name in HIP and pivot == 'hip':
-            hy = HIP[pup.name]
+        if pup.hip is not None and pivot == 'hip':
+            hy = pup.hip
             self.pivot = (PAD + pup.ex * scale, PAD + hy * scale)      # speaking motion rotates about the hips
             row = pup.alpha[max(0, hy - 30)] > 0.5
             xs_ = np.where(row)[0]
@@ -458,8 +492,8 @@ class Sprite:
             self.hip_y = Y + (hy - pup.ey) * scale
         else:
             self.pivot = (PAD + pup.ex * scale, PAD + sh)             # feet
-            if pup.name in HIP:
-                hy = HIP[pup.name]
+            if pup.hip is not None:
+                hy = pup.hip
                 row = pup.alpha[max(0, hy - 30)] > 0.5
                 xs_ = np.where(row)[0]
                 self.hip_l = Y_frame_x(X, pup, scale, xs_.min())
@@ -581,6 +615,55 @@ class Scene:
         assert arr.shape[:2] == (H + 8, W + 8), arr.shape
         return cv2.GaussianBlur(arr, (0, 0), blur), k, py
 
+    def plate_at(self, name, k, px, py, blur=2.5):
+        """Plate scaled by k with its top-left corner at frame (px, py); must cover the frame. Returns (H+8, W+8, 3), 4 px margin."""
+        im = Image.open(asset_path(name)).convert('RGB')
+        iw, ih = im.size
+        a = np.asarray(im.resize((int(round(iw * k)), int(round(ih * k))), Image.LANCZOS))
+        ph, pw = a.shape[:2]
+        assert px <= -4 and py <= -4 and px + pw >= W + 4 and py + ph >= H + 4, ('plate does not cover frame', name, k, px, py)
+        arr = a[-4 - py:H + 4 - py, -4 - px:W + 4 - px]
+        return cv2.GaussianBlur(np.ascontiguousarray(arr), (0, 0), blur)
+
+    def cover_fill(self, name):
+        """Full-screen plate: scaled to cover 1080x1920 (centre crop), no blur. Returns uint8 (H+8, W+8, 3)."""
+        key = ('cover', name)
+        if key in self.bgs:
+            return self.bgs[key]
+        im = Image.open(asset_path(name)).convert('RGB')
+        iw, ih = im.size
+        k = max((W + 8) / iw, (H + 8) / ih)
+        pw, ph = int(math.ceil(iw * k)), int(math.ceil(ih * k))
+        a = np.asarray(im.resize((pw, ph), Image.LANCZOS))
+        x0, y0 = (pw - (W + 8)) // 2, (ph - (H + 8)) // 2
+        a = np.ascontiguousarray(a[y0:y0 + H + 8, x0:x0 + W + 8])
+        self.bgs[key] = a
+        return a
+
+    def blank_panel(self, name):
+        """Find the flat dark charcoal panel of a cover collage (frame coords x0, y0, x1, y1); fall back to the lower middle."""
+        key = ('blank', name)
+        if key in self.bgs:
+            return self.bgs[key]
+        a = self.cover_fill(name)[4:4 + H, 4:4 + W]
+        g = cv2.cvtColor(a, cv2.COLOR_RGB2GRAY).astype(np.float32)
+        m1 = cv2.blur(g, (15, 15))
+        sd = np.sqrt(np.maximum(cv2.blur(g * g, (15, 15)) - m1 * m1, 0))
+        mask = ((m1 > 28) & (m1 < 100) & (sd < 7)).astype(np.uint8)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((31, 31), np.uint8))
+        lab, n = ndi.label(mask)
+        best = None
+        for i in range(1, n + 1):
+            ys, xs = np.where(lab == i)
+            area = len(xs)
+            if ys.mean() < 0.4 * H or area < 0.02 * W * H:
+                continue
+            if best is None or area > best[0]:
+                best = (area, xs.min(), ys.min(), xs.max() + 1, ys.max() + 1)
+        rect = best[1:] if best else (int(0.30 * W), int(0.66 * H), int(0.70 * W), int(0.90 * H))
+        self.bgs[key] = tuple(int(v) for v in rect)
+        return self.bgs[key]
+
     def get_puppet(self, name):
         if name not in self.puppets:
             self.puppets[name] = Puppet(name, eyes=(not name.startswith('table')))
@@ -652,7 +735,7 @@ def layout_ep01(scene, shot):
 def layout_shot(scene, shot):
     if shot in scene.sprites:
         return scene.sprites[shot]
-    return {'ep02_on_hold': layout_ep02, 'ep03_apology': layout_ep03}.get(EPNAME, layout_ep01)(scene, shot)
+    return {'ep02_on_hold': layout_ep02, 'ep03_apology': layout_ep03, 'ep06_grandfather_auto': layout_ep06}.get(EPNAME, layout_ep01)(scene, shot)
 
 
 def blob_shadows(arr, items, blur=6):
@@ -790,6 +873,52 @@ def layout_ep03(scene, shot):
     return out
 
 
+# ep06 layout (v2, 2026-11-05): every character shot is in bg_living (one room).
+# Russell: on the red sofa on the left of bg_living, figure 60 % of the frame height. The four stages share one scale and
+# one anchor (puppet h = 1347 and eye line y = 322 in s1..s4), so the figure and the sofa do not move between cuts.
+EP06_RUSSELL = dict(plate='bg_living', S=985 / 1672)     # S = cushion top (fraction of plate height)
+EP06_RUSSELL_SCALE = 0.60 * H / 1347                     # source px -> frame px
+EP06_RUSSELL_X = 310                                     # frame x of the eye-line centre (sofa centre; body stays inside the left edge)
+EP06_RUSSELL_TOP = 405                                   # frame y of the top of the figure
+EP06_RUSSELL_SEAT_Y = 1140                               # seat line (cushion top): lap of the figure sits here
+# Marcus and Neil stand on the right-hand rug of bg_living, one scale for both. Plate zoom k with top-left at (px, py):
+# the lamp and the green armchair are in frame, the rug is under the feet.
+EP06_STAND_SCALE = 0.93                                  # source px -> frame px (Marcus 1435 px tall, Neil 1490 px)
+EP06_STAND_TOP = 330                                     # top of the figure (box or hair) in frame y
+EP06_STAND_X = 660                                       # frame x of the eye-line centre
+EP06_STAND_PLATE = dict(k=1.82, px=-614, py=-550)
+
+
+def layout_ep06(scene, shot):
+    """ep06: full-screen fake-game plates (no cast) and single shots of puppets in bg_living: Russell seated, Marcus and Neil standing."""
+    out = {'bg': None, 'sprites': [], 'table': None, 'notes': [], 'items': None}
+    sp = scene.spec['shots'][shot]
+    if sp.get('fullscreen'):
+        out['bg'] = scene.cover_fill(sp['bg'])
+        out['notes'].append(f"{shot}: full-screen plate {sp['bg']}")
+        scene.sprites[shot] = out
+        return out
+    role = list(sp['cast'])[0]
+    pup = scene.get_puppet(sp['cast'][role])
+    if role == 'R':
+        plate, S = EP06_RUSSELL['plate'], EP06_RUSSELL['S']
+        s = EP06_RUSSELL_SCALE
+        spr = Sprite(role, pup, s, EP06_RUSSELL_X, EP06_RUSSELL_TOP + pup.ey * s, 'single', (6, 8), pivot='hip')
+        out['sprites'].append((role, spr))
+        out['bg'], k = scene.seat_plate(plate, S, EP06_RUSSELL_SEAT_Y, EP06_RUSSELL_X, [(spr.hip_l, spr.hip_r, 22)])
+        out['notes'].append(f'{role}/{pup.name}: height {pup.h * s:.0f}px, hip y {spr.hip_y:.0f}, feet y {spr.feet_y:.0f}; plate {plate} scale {k:.3f}')
+    else:
+        s = EP06_STAND_SCALE
+        spr = Sprite(role, pup, s, EP06_STAND_X, EP06_STAND_TOP + pup.ey * s, 'single', (6, 8), pivot='feet')
+        out['sprites'].append((role, spr))
+        p = EP06_STAND_PLATE
+        out['bg'] = blob_shadows(scene.plate_at('bg_living', p['k'], p['px'], p['py']),
+                                 [(spr.foot_cx, spr.feet_y - 6, 0.34 * spr.fig_w, 22, 0.55)], blur=6)
+        out['notes'].append(f'{role}/{pup.name}: top {EP06_STAND_TOP}, head {pup.headw * s:.0f}px, feet y {spr.feet_y:.0f}')
+    scene.sprites[shot] = out
+    return out
+
+
 def fit_sprite(role, pup, X, headw, notes, eye_y=None, hip_y=None, max_shift=None, arm_fit=True, pivot='hip'):
     scale = headw / pup.headw
     # keep raised arm / body edges in frame: left extent from head centre
@@ -804,7 +933,7 @@ def fit_sprite(role, pup, X, headw, notes, eye_y=None, hip_y=None, max_shift=Non
         else:
             notes.append(f'{role}/{pup.name}: shifted X {X:.0f}->{X2:.0f} to keep arm in frame')
         X = X2
-    off = (HIP[pup.name] - pup.ey) * scale if pup.name in HIP else 0.0   # eye line -> hip line, frame px
+    off = (pup.hip - pup.ey) * scale if pup.hip is not None else 0.0   # eye line -> hip line, frame px
     Y = eye_y if eye_y is not None else hip_y - off
     spr = Sprite(role, pup, scale, X, Y, 'single', (6, 8), pivot=pivot)
     spr.X = X
@@ -888,6 +1017,227 @@ def env_at(env, local):
 
 
 # --------------------------------------------------------------------------------------
+# ep06 text art (Pillow; our own lettering, no GTA face)
+# --------------------------------------------------------------------------------------
+def _rgba_from_mask(mask, fill, outline_mask=None, outline=(0, 0, 0), shadow=(6, 9), shadow_a=0.55):
+    """mask/outline_mask float 0..1 (HxW). Returns premult RGBA uint8: drop shadow, outline, fill."""
+    h, w = mask.shape
+    if outline_mask is None:
+        outline_mask = mask
+    base = np.zeros((h, w, 4), np.uint8)
+    sh = cv2.warpAffine(outline_mask.astype(np.float32), np.float32([[1, 0, shadow[0]], [0, 1, shadow[1]]]), (w, h))
+    base[..., 3] = np.clip(cv2.GaussianBlur(sh, (0, 0), 6) * shadow_a * 255, 0, 255).astype(np.uint8)
+    over_layer(base, premult(np.broadcast_to(np.array(outline, np.float32), (h, w, 3)), np.clip(outline_mask, 0, 1)), 0, 0)
+    f = np.asarray(fill, np.float32)
+    f = np.broadcast_to(f, (h, w, 3)) if f.ndim == 1 else f
+    over_layer(base, premult(f, np.clip(mask, 0, 1)), 0, 0)
+    return base
+
+
+def stamp_layer(rows, max_w, gap=0.08, ss=2, pad=60):
+    """Stack heavy text rows [(text, font_spec, size, fill, outline_px)] centred; each row is shrunk to fit max_w.
+    Returns premult RGBA (tight + pad)."""
+    imgs = []
+    for text, fspec, size, fill, ow in rows:
+        f = font(fspec, int(size * ss))
+        while f.getlength(text) > max_w * ss and size > 12:
+            size *= 0.96
+            f = font(fspec, int(size * ss))
+        bb = f.getbbox(text, stroke_width=int(ow * ss))
+        wpx, hpx = bb[2] - bb[0] + 4 * ss, bb[3] - bb[1] + 4 * ss
+        m = Image.new('L', (wpx, hpx), 0)
+        ImageDraw.Draw(m).text((2 * ss - bb[0], 2 * ss - bb[1]), text, font=f, fill=255)
+        o = Image.new('L', (wpx, hpx), 0)
+        ImageDraw.Draw(o).text((2 * ss - bb[0], 2 * ss - bb[1]), text, font=f, fill=255, stroke_width=int(ow * ss), stroke_fill=255)
+        imgs.append((m.resize((wpx // ss, hpx // ss), Image.LANCZOS), o.resize((wpx // ss, hpx // ss), Image.LANCZOS), fill))
+    tw = max(i[0].width for i in imgs) + 2 * pad
+    th = int(sum(i[0].height * (1 + gap) for i in imgs)) + 2 * pad
+    M = np.zeros((th, tw), np.float32)
+    O = np.zeros((th, tw), np.float32)
+    F = np.zeros((th, tw, 3), np.float32)
+    y = pad
+    for m, o, fill in imgs:
+        x = (tw - m.width) // 2
+        ma, oa = np.asarray(m).astype(np.float32) / 255, np.asarray(o).astype(np.float32) / 255
+        sl = (slice(y, y + m.height), slice(x, x + m.width))
+        F[sl] = np.where(ma[..., None] > M[sl][..., None], np.asarray(fill, np.float32), F[sl])
+        M[sl] = np.maximum(M[sl], ma)
+        O[sl] = np.maximum(O[sl], oa)
+        y += int(m.height * (1 + gap))
+    return _rgba_from_mask(M, F, O)
+
+
+def fancy_f(size):
+    """A display F that cannot be misread: Didot Bold F with a long swash on the top bar and a curl, drawn on a mask.
+    Returns (mask float HxW, baseline_y, advance)."""
+    ss = 3
+    f = font(FONT_DIDOT_BOLD, int(size * ss))
+    bb = f.getbbox('F')
+    wpx, hpx = bb[2] - bb[0], bb[3] - bb[1]
+    padx, pady = int(0.55 * wpx), int(0.35 * hpx)
+    img = Image.new('L', (wpx + 2 * padx, hpx + 2 * pady), 0)
+    d = ImageDraw.Draw(img)
+    d.text((padx - bb[0], pady - bb[1]), 'F', font=f, fill=255)
+    # swash: the top bar sweeps left in a curl and the arm ends in a ball
+    lw = max(4, int(0.045 * hpx))
+    top = pady + int(0.03 * hpx)
+    x0 = padx
+    pts = [(x0 - 0.50 * wpx, top + 0.20 * hpx), (x0 - 0.38 * wpx, top - 0.10 * hpx), (x0 - 0.10 * wpx, top - 0.02 * hpx), (x0 + 0.05 * wpx, top + 0.03 * hpx)]
+    for t in np.linspace(0, 1, 60):
+        a = (1 - t) ** 3 * np.array(pts[0]) + 3 * (1 - t) ** 2 * t * np.array(pts[1]) + 3 * (1 - t) * t ** 2 * np.array(pts[2]) + t ** 3 * np.array(pts[3])
+        r = lw * (0.4 + 0.9 * t)
+        d.ellipse([a[0] - r, a[1] - r, a[0] + r, a[1] + r], fill=255)
+    cx, cy = x0 - 0.50 * wpx, top + 0.20 * hpx
+    d.ellipse([cx - 2.2 * lw, cy - 2.2 * lw, cx + 2.2 * lw, cy + 2.2 * lw], fill=255)
+    bx, by = padx + wpx * 1.0, top + 0.02 * hpx
+    d.ellipse([bx - 1.6 * lw, by - 1.6 * lw, bx + 1.6 * lw, by + 1.6 * lw], fill=255)
+    mid = pady + int(0.50 * hpx)
+    d.ellipse([padx + 0.80 * wpx - 1.5 * lw, mid - 1.5 * lw, padx + 0.80 * wpx + 1.5 * lw, mid + 1.5 * lw], fill=255)
+    bbm = img.getbbox()
+    img = img.crop(bbm).resize(((bbm[2] - bbm[0]) // ss, (bbm[3] - bbm[1]) // ss), Image.LANCZOS)
+    return np.asarray(img).astype(np.float32) / 255
+
+
+def title_layer(text, box_w, box_h):
+    """Cover title: GRAND / <fancy F>ATHER / AUTO VI, each row justified to the panel width, gold with black outline."""
+    words = text.split()
+    top, mid, bot = words[0], words[1], ' '.join(words[2:])
+    ss = 2
+    base = 220
+
+    def row_mask(t):
+        f = font(FONT_DIDOT_BOLD, base * ss)
+        bb = f.getbbox(t)
+        m = Image.new('L', (bb[2] - bb[0] + 8, bb[3] - bb[1] + 8), 0)
+        ImageDraw.Draw(m).text((4 - bb[0], 4 - bb[1]), t, font=f, fill=255)
+        return np.asarray(m.resize((m.width // ss, m.height // ss), Image.LANCZOS)).astype(np.float32) / 255
+
+    def fit_w(m, w):
+        k = w / m.shape[1]
+        return cv2.resize(m, (max(1, int(m.shape[1] * k)), max(1, int(m.shape[0] * k))), interpolation=cv2.INTER_AREA)
+
+    fm = fancy_f(base * 1.55)                  # drop-cap F, taller than the rest of the row
+    rm = row_mask(mid[1:])
+    Hh = max(fm.shape[0], rm.shape[0])
+    row2 = np.zeros((Hh, fm.shape[1] + rm.shape[1] + 10), np.float32)
+    row2[Hh - fm.shape[0]:, :fm.shape[1]] = fm
+    row2[Hh - rm.shape[0]:, fm.shape[1] + 10:] = np.maximum(row2[Hh - rm.shape[0]:, fm.shape[1] + 10:], rm)
+    wt = box_w * 0.90
+    r1, r2, r3 = fit_w(row_mask(top), wt), fit_w(row2, wt), fit_w(row_mask(bot), wt * 0.82)
+    gap = int(0.05 * box_w)
+    pad = 24
+    tw = int(wt) + 2 * pad
+    th = r1.shape[0] + r2.shape[0] + r3.shape[0] + 2 * gap + 2 * pad
+    M = np.zeros((th, tw), np.float32)
+    y = pad
+    for r in (r1, r2, r3):
+        x = (tw - r.shape[1]) // 2
+        M[y:y + r.shape[0], x:x + r.shape[1]] = np.maximum(M[y:y + r.shape[0], x:x + r.shape[1]], r)
+        y += r.shape[0] + gap
+    ow = max(2, int(box_w * 0.012))
+    O = cv2.dilate(M, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * ow + 1, 2 * ow + 1)))
+    yy = np.linspace(0, 1, th, dtype=np.float32)[:, None, None]
+    fill = np.array((255, 226, 130), np.float32) * (1 - yy) + np.array((232, 140, 40), np.float32) * yy
+    lay = _rgba_from_mask(M, np.broadcast_to(fill, (th, tw, 3)).copy(), O, shadow=(4, 6))
+    s = min(1.0, box_w * 0.98 / tw, box_h * 0.98 / th)
+    if s < 1.0:
+        lay = cv2.resize(lay, (int(tw * s), int(th * s)), interpolation=cv2.INTER_AREA)
+    return lay
+
+
+EP06_BAND_CY = 1440   # ep06 cover: centre y of the title band (top half of the bottom row of the cover collage)
+
+
+def title_band_layer(text, band_w=W, base=200):
+    """ep06 cover title: one full-width dark band with two gold rows, GRAND FATHER / AUTO VI.
+    The F of FATHER is the swash F (fancy_f). Each row is shrunk together so the top row spans ~90% of the width.
+    Returns premult RGBA (band_h, band_w)."""
+    words = text.split()                                   # GRAND FATHER AUTO VI
+    ss = 2
+
+    def row_mask(t):
+        f = font(FONT_DIDOT_BOLD, base * ss)
+        bb = f.getbbox(t)
+        m = Image.new('L', (bb[2] - bb[0] + 8, bb[3] - bb[1] + 8), 0)
+        ImageDraw.Draw(m).text((4 - bb[0], 4 - bb[1]), t, font=f, fill=255)
+        return np.asarray(m.resize((m.width // ss, m.height // ss), Image.LANCZOS)).astype(np.float32) / 255
+
+    p1, p2 = row_mask(words[0]), row_mask(words[1][1:])     # GRAND | ATHER
+    fo = fancy_f(base)                                      # F of FATHER
+    gap_w, f_gap = int(0.24 * base), -int(0.06 * base)     # v2: F and ATHER pulled together (was +0.05 * base)
+    h1 = max(p1.shape[0], fo.shape[0], p2.shape[0])
+    R1 = np.zeros((h1, p1.shape[1] + gap_w + fo.shape[1] + f_gap + p2.shape[1]), np.float32)
+
+    def put(dst, m, x):                                     # bottom (baseline) aligned
+        sl = (slice(h1 - m.shape[0], h1), slice(x, x + m.shape[1]))
+        dst[sl] = np.maximum(dst[sl], m)
+
+    x = 0
+    put(R1, p1, x); x += p1.shape[1] + gap_w
+    put(R1, fo, x); x += fo.shape[1] + f_gap
+    put(R1, p2, x)
+    R2 = row_mask(' '.join(words[2:]))                      # AUTO VI
+
+    k = 0.90 * band_w / R1.shape[1]
+    R1 = cv2.resize(R1, (int(round(R1.shape[1] * k)), int(round(R1.shape[0] * k))), interpolation=cv2.INTER_AREA)
+    R2 = cv2.resize(R2, (int(round(R2.shape[1] * k)), int(round(R2.shape[0] * k))), interpolation=cv2.INTER_AREA)
+    pad = int(0.20 * R1.shape[0])
+    gap = int(0.22 * R1.shape[0])
+    bh = pad + R1.shape[0] + gap + R2.shape[0] + pad
+    M = np.zeros((bh, band_w), np.float32)
+    y = pad
+    for R in (R1, R2):
+        x = (band_w - R.shape[1]) // 2
+        M[y:y + R.shape[0], x:x + R.shape[1]] = np.maximum(M[y:y + R.shape[0], x:x + R.shape[1]], R)
+        y += R.shape[0] + gap
+    ow = max(2, int(band_w * 0.007))
+    O = cv2.dilate(M, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * ow + 1, 2 * ow + 1)))
+    yy = np.linspace(0, 1, bh, dtype=np.float32)[:, None, None]
+    fill = np.array((255, 226, 130), np.float32) * (1 - yy) + np.array((232, 140, 40), np.float32) * yy
+    text_layer = _rgba_from_mask(M, np.broadcast_to(fill, (bh, band_w, 3)).copy(), O, shadow=(4, 6))
+    band = np.zeros((bh, band_w, 4), np.uint8)
+    band[..., :3] = (24, 15, 9)                             # dark cocoa band, premultiplied at alpha 236
+    band[..., 3] = 236
+    band[:6] = (255, 200, 90, 255)                          # gold rules on both edges
+    band[-6:] = (255, 200, 90, 255)
+    over_layer(band, text_layer, 0, 0)
+    return band
+
+
+def big_mark_layer(text, box_w, box_h, base=400):
+    """Huge display lettering (Didot Bold, our own type, not the game face) scaled to fill box_w x box_h, pink-to-orange gradient.
+    Returns premult RGBA."""
+    ss = 2
+    f = font(FONT_DIDOT_BOLD, base * ss)
+    bb = f.getbbox(text)
+    m = Image.new('L', (bb[2] - bb[0] + 8, bb[3] - bb[1] + 8), 0)
+    ImageDraw.Draw(m).text((4 - bb[0], 4 - bb[1]), text, font=f, fill=255)
+    M = np.asarray(m.resize((m.width // ss, m.height // ss), Image.LANCZOS)).astype(np.float32) / 255
+    k = min(box_w / M.shape[1], box_h / M.shape[0])
+    M = cv2.resize(M, (int(M.shape[1] * k), int(M.shape[0] * k)), interpolation=cv2.INTER_AREA)
+    th, tw = M.shape
+    ow = max(2, int(box_w * 0.008))
+    O = cv2.dilate(M, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * ow + 1, 2 * ow + 1)))
+    yy = np.linspace(0, 1, th, dtype=np.float32)[:, None, None]
+    fill = np.array((255, 120, 178), np.float32) * (1 - yy) + np.array((255, 158, 70), np.float32) * yy
+    return _rgba_from_mask(M, np.broadcast_to(fill, (th, tw, 3)).copy(), O, shadow=(5, 7))
+
+
+def broken_hip_layer():
+    return stamp_layer([('BROKEN HIP', FONT_HEAVY, 190, (225, 32, 32), 11)], 900)
+
+
+def mission_passed_layer():
+    return stamp_layer([('MISSION PASSED', FONT_HEAVY, 150, (255, 208, 66), 9), ('+$0.12', FONT_HEAVY, 120, (150, 235, 130), 8)], 960, gap=0.18)
+
+
+def bw(fr, dim=0.94):
+    g = (fr[..., 0] * 0.299 + fr[..., 1] * 0.587 + fr[..., 2] * 0.114).astype(np.float32)
+    g = (g - 128) * 1.12 + 128
+    return np.repeat(np.clip(g * dim, 0, 255).astype(np.uint8)[..., None], 3, axis=2)
+
+
+# --------------------------------------------------------------------------------------
 # frame renderer
 # --------------------------------------------------------------------------------------
 LOOK_X = {'center': 0.0, 'left': -0.5, 'right': 0.5, 'down': 0.0}
@@ -908,12 +1258,41 @@ class Renderer:
         self.tint = np.array([1.045, 1.0, 0.915], np.float32)
         self.starts = [e['start'] for e in tl]
 
+    def variant(self, T):
+        """Per-output-frame state that changes faster than the 12 fps animation grid (mid-beat cuts, overlays, push-in):
+        (effective shot, overlay phase or -1, push bucket). Part of the frame cache key."""
+        bi = self.beat_at(T)
+        e = self.tl[bi]
+        b = e['beat']
+        lo = max(0.0, T - e['start'])
+        shot = b['shot']
+        for t_cut, s_cut in b.get('shot_at', []):
+            if lo >= t_cut - 1e-9:
+                shot = s_cut
+        ov = -1
+        if b.get('overlay') and lo >= b.get('overlay_from', 0.0) - 1e-9:
+            ov = min(3, int((lo - b.get('overlay_from', 0.0)) * OUT_FPS + 1e-6))
+        push = int(lo * OUT_FPS + 1e-6) if b.get('push') else 0
+        return shot, ov, push
+
     def beat_at(self, T):
         lo = 0
         for i, s in enumerate(self.starts):
             if s <= T + 1e-9:
                 lo = i
         return lo
+
+    def caption_owner(self, bi):
+        """Beat whose caption card is on screen during beat bi: its own spoken text, or the card carried on by cap_cont beats."""
+        b = self.tl[bi]['beat']
+        if 'hold' not in b and self.tl[bi]['audio'] is not None and b.get('text'):
+            return bi
+        j = bi
+        while j > 0 and self.tl[j]['beat'].get('cap_cont'):
+            j -= 1
+            if self.tl[j]['beat'].get('text'):
+                return j
+        return None
 
     # ---- captions
     def caption(self, i):
@@ -1066,15 +1445,18 @@ class Renderer:
         return self._titles[text]
 
     # ---- main per-frame render
-    def frame(self, T, aidx):
-        """T: time in seconds (state time, already snapped to animation grid / beat start); aidx: global anim frame idx."""
+    def frame(self, T, aidx, t_out=None):
+        """T: time in seconds (state time, already snapped to animation grid / beat start); aidx: global anim frame idx.
+        t_out: real output time (for mid-beat cuts, overlays and the push-in, which run at the full output rate)."""
         bi = self.beat_at(T)
         e = self.tl[bi]
         b = e['beat']
         local = max(0.0, T - e['start'])
+        t_out = T if t_out is None else max(T, t_out)
+        local_out = max(0.0, t_out - e['start'])
         hold = 'hold' in b
         spoken = not hold and e['audio'] is not None
-        shot = b['shot']
+        shot, ov_phase, _ = self.variant(t_out)
         pair = aidx // 2
         rng_bg = np.random.default_rng(1000 + pair)
         if shot in ('title', 'card'):
@@ -1158,10 +1540,12 @@ class Renderer:
             dy, ang = 0.0, 0.0
             if role == say:
                 dy = -0.01 * H * min(1.0, lev)
-                if shot == 'm_jump':
+                if shot in ('m_jump', 'marcus_jump'):
                     dy -= 62 * min(1.0, lev)      # hop: rises with loudness, lands in the quiet
                 sgn = 1 if math.sin(aidx * 2.3 + 0.7) > 0 else -1
                 ang = 1.5 * min(1.0, lev) * sgn
+            if b.get('nod'):
+                dy += 14 * abs(math.sin(2 * math.pi * 1.5 * min(1.0, local / max(e['dur'], 1e-6))))
             if role in tilt_to:
                 ang += tilt_to[role] * p
             if role in tilt:
@@ -1177,12 +1561,86 @@ class Renderer:
             M = np.float32([[1, 0, r.uniform(-1.2, 1.2)], [0, 1, r.uniform(-1.2, 1.2)]])
             warped = cv2.warpAffine(tsp.canvas, M, (tsp.canvas.shape[1], tsp.canvas.shape[0]))
             over(fr, warped, tsp.ox, tsp.oy)
-        if spoken and b.get('text'):
-            cap = self.caption(bi)
+        title = self.spec['shots'].get(shot, {}).get('title')
+        if title and EPNAME == 'ep06_grandfather_auto':
+            tb = self.title_band(title)                       # full-width band, centred on EP06_BAND_CY
+            over(fr, tb, 0, EP06_BAND_CY - tb.shape[0] // 2)
+            big = self.spec['shots'][shot].get('big_mark')
+            if big:                                           # huge mark filling the black cell under the band
+                x0, y0, x1, y1 = self.scene.blank_panel(self.spec['shots'][shot]['bg'])
+                top = EP06_BAND_CY + tb.shape[0] // 2 + 12
+                vi = self.big_mark_art(big, x1 - x0 - 16, y1 - 14 - top)
+                over(fr, vi, x0 + (x1 - x0 - vi.shape[1]) // 2, top + (y1 - 14 - top - vi.shape[0]) // 2)
+        elif title:
+            x0, y0, x1, y1 = self.scene.blank_panel(self.spec['shots'][shot]['bg'])
+            tl_ = self.title_art(title, x1 - x0, y1 - y0)
+            over(fr, tl_, int((x0 + x1) / 2 - tl_.shape[1] / 2), int((y0 + y1) / 2 - tl_.shape[0] / 2))
+        if b.get('push') and lay['sprites']:
+            spr0 = lay['sprites'][0][1]
+            z = 1.0 + 0.38 * smooth(local_out / max(e['dur'], 1e-6))
+            Mz = cv2.getRotationMatrix2D((spr0.ox + spr0.ex, spr0.oy + spr0.ey), 0, z)
+            fr = cv2.warpAffine(fr, Mz, (W, H), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT)
+        owner = self.caption_owner(bi)
+        if owner is not None:
+            cap = self.caption(owner)
             r = np.random.default_rng(321 + pair)
             ox, oy = (int(v) for v in r.integers(-1, 2, size=2))
             over(fr, cap, int(W / 2 - cap.shape[1] / 2) + ox, int(1420 - cap.shape[0] / 2) + oy)
-        return self.grade(fr, aidx)
+        fr = self.grade(fr, aidx)
+        if ov_phase >= 0:
+            fr = self.overlay(fr, b['overlay'], ov_phase)
+        return fr
+
+    def title_art(self, text, w, h):
+        if not hasattr(self, '_title_art'):
+            self._title_art = {}
+        k = (text, w, h)
+        if k not in self._title_art:
+            self._title_art[k] = title_layer(text, w, h)
+        return self._title_art[k]
+
+    def big_mark_art(self, text, w, h):
+        if not hasattr(self, '_big_mark'):
+            self._big_mark = {}
+        k = (text, w, h)
+        if k not in self._big_mark:
+            self._big_mark[k] = big_mark_layer(text, w, h)
+        return self._big_mark[k]
+
+    def title_band(self, text):
+        if not hasattr(self, '_title_band'):
+            self._title_band = {}
+        if text not in self._title_band:
+            self._title_band[text] = title_band_layer(text)
+        return self._title_band[text]
+
+    def overlay(self, fr, name, phase):
+        """Post-grade overlays (ep06): broken_hip = black and white frame + big red text; mission_passed = gold text."""
+        if not hasattr(self, '_ov_art'):
+            self._ov_art = {}
+        if name == 'broken_hip':
+            fr = bw(fr)
+            cy = int(H * 0.44)
+        elif name == 'mission_passed':
+            f = fr.astype(np.float32)
+            yy = np.arange(H, dtype=np.float32)[:, None, None]
+            band = np.clip(1 - np.abs(yy - H * 0.44) / (H * 0.2), 0, 1) * 0.42
+            fr = np.clip(f * (1 - band), 0, 255).astype(np.uint8)
+            cy = int(H * 0.44)
+        else:
+            raise ValueError(name)
+        if name not in self._ov_art:
+            self._ov_art[name] = broken_hip_layer() if name == 'broken_hip' else mission_passed_layer()
+        art = self._ov_art[name]
+        z = (1.22, 1.10, 1.04, 1.0)[phase]
+        if z != 1.0:
+            art = cv2.resize(art, (int(art.shape[1] * z), int(art.shape[0] * z)), interpolation=cv2.INTER_LINEAR)
+        ang = -3.0 if name == 'broken_hip' else 0.0
+        if ang:
+            Mr = cv2.getRotationMatrix2D((art.shape[1] / 2, art.shape[0] / 2), ang, 1.0)
+            art = cv2.warpAffine(art, Mr, (art.shape[1], art.shape[0]))
+        over(fr, art, int(W / 2 - art.shape[1] / 2), int(cy - art.shape[0] / 2))
+        return fr
 
     def grade(self, fr, aidx):
         f = fr.astype(np.float32)
@@ -1241,6 +1699,50 @@ def door_knock(sr=SR):
         i = int(t0 * sr)
         out[i:i + n] += x
     return out * 0.8
+
+
+def sfx_hit(sr=SR):
+    """Cane on a hip: low thump (pitch drop) + short wooden crack. Original synthesis."""
+    n = int(0.45 * sr)
+    t = np.arange(n) / sr
+    f = 45 + 110 * np.exp(-t / 0.05)
+    thump = np.sin(2 * np.pi * np.cumsum(f) / sr) * np.exp(-t / 0.11) * 0.85
+    rng = np.random.default_rng(11)
+    crack = rng.standard_normal(n)
+    crack = crack - np.convolve(crack, np.ones(6) / 6, 'same')
+    crack = crack * np.exp(-t / 0.012) * 0.55
+    wood = np.sin(2 * np.pi * 640 * t) * np.exp(-t / 0.03) * 0.25
+    y = thump + crack + wood
+    y[:int(0.002 * sr)] *= np.linspace(0, 1, int(0.002 * sr))
+    return (y / max(1e-6, np.abs(y).max()) * 0.8).astype(np.float32)
+
+
+def sfx_mission_pass(sr=SR):
+    """Very short original 'level done' flourish: four quick rising plucks, the last one rings."""
+    total = 0.75
+    y = np.zeros(int(total * sr), np.float32)
+    for k, (fq, t0, dur, amp) in enumerate([(523.25, 0.0, 0.16, 0.5), (659.25, 0.08, 0.16, 0.5), (783.99, 0.16, 0.18, 0.55), (1046.5, 0.25, 0.45, 0.7)]):
+        n = int(dur * sr)
+        t = np.arange(n) / sr
+        env = np.minimum(t / 0.004, 1) * np.exp(-t / (dur * 0.45))
+        w = np.sin(2 * np.pi * fq * t) + 0.35 * np.sin(2 * np.pi * 2 * fq * t) + 0.12 * np.sin(2 * np.pi * 3 * fq * t)
+        s0 = int(t0 * sr)
+        y[s0:s0 + n] += (w * env * amp * 0.45).astype(np.float32)[:len(y) - s0]
+    return (y / max(1e-6, np.abs(y).max()) * 0.5).astype(np.float32)
+
+
+def sfx_bleep(sr=SR, dur=0.35):
+    """Censor bleep: 1 kHz sine."""
+    n = int(dur * sr)
+    t = np.arange(n) / sr
+    y = np.sin(2 * np.pi * 1000 * t) * 0.15
+    k = int(0.005 * sr)
+    y[:k] *= np.linspace(0, 1, k)
+    y[-k:] *= np.linspace(1, 0, k)
+    return y.astype(np.float32)
+
+
+SYNTH_SFX = {'hit': sfx_hit, 'mission_pass': sfx_mission_pass, 'bleep': sfx_bleep}
 
 
 def hold_music_loop(sr=SR):
@@ -1351,6 +1853,13 @@ def build_audio(tl, total, path):
             continue
         s = int(t * SR)
         mix[s:s + len(bl)] += bl[:max(0, min(len(bl), n - s))]
+    # synthesised one-shots (ep06): placed at beat start + sfx_at
+    for e in tl:
+        nm = e['beat'].get('sfx')
+        if nm in SYNTH_SFX:
+            x = SYNTH_SFX[nm]()
+            s0 = int((e['start'] + float(e['beat'].get('sfx_at', 0.0))) * SR)
+            mix[s0:s0 + len(x)] += x[:max(0, min(len(x), n - s0))]
     # hold music (ep02): from music_start to music_stop_click, telephone band-passed
     m_start = next((e['start'] for e in tl if e['beat'].get('sfx') == 'music_start'), None)
     m_stop = next((e['start'] for e in tl if e['beat'].get('sfx') == 'music_stop_click'), None)
@@ -1404,6 +1913,19 @@ def snap_state(R, T):
     return ta, aidx, bi
 
 
+def append_end_tag(body, tag, out, secs):
+    """Concatenate the end card once after the body (ep06). Both inputs are normalised to 1080x1920, 30 fps, 44.1 kHz stereo."""
+    fc = (f'[1:v]trim=duration={secs},setpts=PTS-STARTPTS,fps={OUT_FPS},scale={W}:{H},setsar=1,format=yuv420p[v1];'
+          f'[1:a]atrim=duration={secs},asetpts=PTS-STARTPTS,aresample=44100,aformat=channel_layouts=stereo[a1];'
+          '[0:v]setpts=PTS-STARTPTS,format=yuv420p[v0];'
+          '[0:a]asetpts=PTS-STARTPTS,aresample=44100,aformat=channel_layouts=stereo[a0];'
+          '[v0][a0][v1][a1]concat=n=2:v=1:a=1[v][a]')
+    cmd = ['ffmpeg', '-y', '-loglevel', 'error', '-i', body, '-i', tag, '-filter_complex', fc, '-map', '[v]', '-map', '[a]',
+           '-c:v', 'libx264', '-crf', '22', '-preset', 'medium', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k',
+           '-ar', '44100', '-movflags', '+faststart', out]
+    subprocess.run(cmd, check=True)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--stills', default=None)
@@ -1430,7 +1952,7 @@ def main():
         return
     R = Renderer(spec, tl)
     if a.eyes:
-        names = sorted({n for s in spec['shots'].values() for n in s['cast'].values()})
+        names = sorted({n for s in spec['shots'].values() for n in s.get('cast', {}).values()})
         tiles = []
         for n in names:
             p = R.scene.get_puppet(n)
@@ -1452,7 +1974,7 @@ def main():
             for ts in a.stills.split(','):
                 T = float(ts)
                 ta, aidx, bi = snap_state(R, T)
-                fr = R.frame(ta, aidx)
+                fr = R.frame(ta, aidx, t_out=T)
                 p = f'{STILLS}/t{T:07.3f}.jpg'
                 Image.fromarray(fr).save(p, quality=92)
                 print('still', p, 'beat', bi)
@@ -1490,19 +2012,21 @@ def main():
     ticks, dings = build_audio(tl, total, audio_path)
     print(f'ticks: {len(ticks)}; dings at {[round(d, 2) for d in dings if d is not None]}')
     nframes = int(round(total * OUT_FPS))
+    end_tag = EPCFG[a.ep].get('end_tag')                  # ep06: body first, then the end card concatenated once
+    body = f'{BUILD}/{a.ep}_body.mp4' if end_tag else a.out
     cmd = ['ffmpeg', '-y', '-loglevel', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{W}x{H}', '-r', str(OUT_FPS), '-i', '-',
            '-i', audio_path, '-filter:a', 'loudnorm=I=-14:TP=-1.5:LRA=11', '-map', '0:v', '-map', '1:a',
            '-c:v', 'libx264', '-crf', '22', '-preset', 'medium', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k',
-           '-ar', '44100', '-movflags', '+faststart', '-shortest', a.out]
+           '-ar', '44100', '-movflags', '+faststart', '-shortest', body]
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     last_key, last = None, None
     t0 = time.time()
     for n in range(nframes):
         T = n / OUT_FPS
         ta, aidx, bi = snap_state(R, T)
-        key = (bi, round(ta * 1000), aidx)
+        key = (bi, round(ta * 1000), aidx, R.variant(T))
         if key != last_key:
-            last = R.frame(ta, aidx)
+            last = R.frame(ta, aidx, t_out=T)
             last_key = key
         proc.stdin.write(last.tobytes())
         if n % 60 == 0:
@@ -1510,6 +2034,11 @@ def main():
     proc.stdin.close()
     rc = proc.wait()
     print('ffmpeg rc', rc, 'frames', nframes, 'elapsed', round(time.time() - t0))
+    if end_tag:
+        if rc != 0:
+            raise SystemExit('body render failed; end tag not appended')
+        append_end_tag(body, end_tag, a.out, EPCFG[a.ep]['end_tag_secs'])
+        print('end tag appended once:', end_tag, f"{EPCFG[a.ep]['end_tag_secs']} s", '->', a.out)
     for note_shot in spec['shots']:
         if note_shot in R.scene.sprites:
             for note in R.scene.sprites[note_shot]['notes']:

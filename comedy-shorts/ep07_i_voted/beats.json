@@ -1,0 +1,343 @@
+{
+  "voices": {
+    "N": {
+      "minimax": "English_ReservedYoungMan",
+      "speed": 1.05
+    },
+    "R": {
+      "minimax": "English_DecentYoungMan",
+      "speed": 1.05
+    },
+    "M": {
+      "minimax": "English_Comedian",
+      "speed": 1.3
+    }
+  },
+  "shots": {
+    "marcus_door": {
+      "cast": {
+        "M": "marcus_door"
+      }
+    },
+    "marcus_bag": {
+      "cast": {
+        "M": "marcus_bag"
+      }
+    },
+    "marcus_sticker": {
+      "cast": {
+        "M": "marcus_sticker"
+      }
+    },
+    "neil": {
+      "cast": {
+        "N": "neil"
+      }
+    },
+    "russell": {
+      "cast": {
+        "R": "russell"
+      }
+    },
+    "sticker_close": {
+      "fullscreen": true,
+      "bg": "sticker_close"
+    },
+    "end_tag": {
+      "fullscreen": true,
+      "bg": "end_tag"
+    }
+  },
+  "rest_mouth": {
+    "R": "smirk",
+    "N": "flat",
+    "M": "grin"
+  },
+  "beats": [
+    {
+      "shot": "marcus_door",
+      "say": "M",
+      "text": "DEMOCRACY, BABY!",
+      "emotion": "happy",
+      "look": {
+        "M": "center"
+      },
+      "speed": 1.3,
+      "after": 0.1
+    },
+    {
+      "shot": "russell",
+      "say": "R",
+      "text": "You voted?",
+      "emotion": "neutral",
+      "look": {
+        "R": "center"
+      },
+      "speed": 1.05,
+      "after": 0.1
+    },
+    {
+      "shot": "marcus_bag",
+      "say": "M",
+      "text": "Two hours in line!",
+      "emotion": "happy",
+      "look": {
+        "M": "center"
+      },
+      "speed": 1.3,
+      "after": 0.1
+    },
+    {
+      "shot": "neil",
+      "say": "N",
+      "text": "Marcus. I'm proud of you.",
+      "emotion": "happy",
+      "look": {
+        "N": "center"
+      },
+      "speed": 1.05,
+      "after": 0.1
+    },
+    {
+      "shot": "russell",
+      "say": "R",
+      "text": "So who'd you vote for?",
+      "emotion": "neutral",
+      "look": {
+        "R": "center"
+      },
+      "speed": 1.05,
+      "after": 0.1
+    },
+    {
+      "shot": "marcus_bag",
+      "say": "M",
+      "text": "Number four.",
+      "emotion": "neutral",
+      "look": {
+        "M": "center"
+      },
+      "speed": 1.3,
+      "after": 0.1
+    },
+    {
+      "shot": "russell",
+      "say": "R",
+      "text": "There's no number four.",
+      "emotion": "neutral",
+      "look": {
+        "R": "center"
+      },
+      "speed": 1.05,
+      "after": 0.1
+    },
+    {
+      "shot": "marcus_bag",
+      "say": "M",
+      "text": "Did you even read the board?",
+      "emotion": "neutral",
+      "look": {
+        "M": "center"
+      },
+      "speed": 1.3,
+      "after": 0.1
+    },
+    {
+      "shot": "neil",
+      "say": "N",
+      "text": "What board?",
+      "emotion": "neutral",
+      "look": {
+        "N": "center"
+      },
+      "speed": 1.05,
+      "after": 0.1
+    },
+    {
+      "shot": "marcus_bag",
+      "say": "M",
+      "text": "The big one! It lights up!",
+      "emotion": "happy",
+      "look": {
+        "M": "center"
+      },
+      "speed": 1.3,
+      "after": 0.1,
+      "tts_text": "The big one, it lights up!"
+    },
+    {
+      "shot": "russell",
+      "say": "R",
+      "text": "Who was on it?",
+      "emotion": "neutral",
+      "look": {
+        "R": "center"
+      },
+      "speed": 1.05,
+      "after": 0.1
+    },
+    {
+      "shot": "marcus_bag",
+      "say": "M",
+      "text": "Chicken. Double Chicken.",
+      "emotion": "happy",
+      "look": {
+        "M": "center"
+      },
+      "speed": 1.3,
+      "after": 0.1
+    },
+    {
+      "shot": "marcus_bag",
+      "say": "M",
+      "text": "And the fish guy, but he runs every year. Never wins.",
+      "emotion": "neutral",
+      "look": {
+        "M": "center"
+      },
+      "speed": 1.35,
+      "after": 0.0
+    },
+    {
+      "shot": "neil",
+      "hold": 1.0,
+      "look": {
+        "N": "eyes_down"
+      },
+      "note": "只有眼珠郁：望落去油紙袋"
+    },
+    {
+      "shot": "russell",
+      "hold": 0.5,
+      "look": {
+        "R": "eyes_down"
+      },
+      "note": "眼珠望落去汽水，嘴角開始笑"
+    },
+    {
+      "shot": "neil",
+      "say": "N",
+      "text": "Did they ask for ID?",
+      "emotion": "neutral",
+      "look": {
+        "N": "center"
+      },
+      "speed": 1.05,
+      "after": 0.1
+    },
+    {
+      "shot": "marcus_bag",
+      "say": "M",
+      "text": "Just my name. Spelled it wrong.",
+      "emotion": "neutral",
+      "look": {
+        "M": "center"
+      },
+      "speed": 1.3,
+      "after": 0.1
+    },
+    {
+      "shot": "russell",
+      "say": "R",
+      "text": "And then?",
+      "emotion": "neutral",
+      "look": {
+        "R": "center"
+      },
+      "speed": 1.05,
+      "after": 0.1
+    },
+    {
+      "shot": "marcus_bag",
+      "say": "M",
+      "text": "They yelled it out. I won!",
+      "emotion": "happy",
+      "look": {
+        "M": "center"
+      },
+      "speed": 1.3,
+      "after": 0.1
+    },
+    {
+      "shot": "marcus_bag",
+      "say": "M",
+      "text": "Four minutes! Why's the news taking all week?",
+      "emotion": "happy",
+      "look": {
+        "M": "center"
+      },
+      "speed": 1.3,
+      "after": 0.0,
+      "tts_text": "Four minutes, why's the news taking all week?"
+    },
+    {
+      "shot": "neil",
+      "hold": 1.0,
+      "look": {
+        "N": "eyes_closed"
+      },
+      "note": "閉埋眼"
+    },
+    {
+      "shot": "neil",
+      "say": "N",
+      "text": "You stood in a line. You read a board. You said \"number four.\" A teenager asked if you wanted fries. And you paid him eleven dollars.",
+      "emotion": "neutral",
+      "look": {
+        "N": "center"
+      },
+      "speed": 1.1,
+      "after": 0.0,
+      "push": true,
+      "note": "全片最長一句，鏡頭慢慢推近"
+    },
+    {
+      "shot": "marcus_bag",
+      "hold": 0.5,
+      "note": "完全唔明有咩問題"
+    },
+    {
+      "shot": "marcus_sticker",
+      "say": "M",
+      "text": "Then how come I got a sticker?",
+      "emotion": "neutral",
+      "look": {
+        "M": "center"
+      },
+      "speed": 1.3,
+      "after": 0.0
+    },
+    {
+      "shot": "sticker_close",
+      "hold": 0.9,
+      "note": "卡通雞舉手，寫住 I ATE IT ALL"
+    },
+    {
+      "shot": "marcus_sticker",
+      "say": "M",
+      "text": "Happy Election Day!",
+      "emotion": "happy",
+      "look": {
+        "M": "center"
+      },
+      "speed": 1.3,
+      "after": 0.1
+    },
+    {
+      "shot": "neil",
+      "say": "N",
+      "text": "That was Tuesday.",
+      "emotion": "neutral",
+      "look": {
+        "N": "center"
+      },
+      "speed": 1.05,
+      "after": 0.0
+    },
+    {
+      "shot": "end_tag",
+      "hold": 1.5,
+      "note": "三主角 end tag 1.5 秒"
+    }
+  ]
+}

@@ -46,7 +46,7 @@ def main(script, out_dir):
             path = os.path.join(out_dir, f'l{i:02d}.wav')
             v = sc['voices'][b['say']]
             if not os.path.exists(path):
-                synth(b['text'], v['minimax'], b.get('speed', v.get('speed', 1.0)), b.get('emotion'), path)
+                synth(b.get('tts_text', b['text']), v['minimax'], b.get('speed', v.get('speed', 1.0)), b.get('emotion'), path)
             made[key] = path
         dur = float(subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', made[key]]))
         manifest.append({'file': os.path.basename(made[key]), 'dur': round(dur, 3)})
