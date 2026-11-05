@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
-"""Upload Game Night to the WaitWhat channel and publish it. Records the video id as soon as it exists, so it can never upload twice; only re-publishes after that."""
+"""Upload a Short to the WaitWhat channel and publish it. Records the video id as soon as it exists, so it can never upload twice; only re-publishes after that."""
 import json, os, sys, time
 sys.path.insert(0, '/Volumes/core/AI-Workspace/Claude/mac-work')
 import yt_shorts as y
 import yt_short_finish as f
 
-FILE = '/Volumes/core/AI-Workspace/Claude/mac-work/comedy/build/game_night_v4.mp4'
-TITLE = 'He Answered Too Fast #shorts'
-DESC = "Couples game night. One rule: don't say the name."
+FILE, TITLE, DESC = sys.argv[1:4]
 y.STATE = '/Volumes/core/AI-Workspace/Claude/mac-work/comedy/posted.json'
 
 # Chrome's default YouTube account is not WaitWhat's, so every Studio URL names the account explicitly
