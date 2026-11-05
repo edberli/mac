@@ -2,7 +2,7 @@
   "voices": {
     "D": {"minimax": "English_Jovialman", "speed": 1.15},
     "L": {"minimax": "English_Upbeat_Woman", "speed": 1.1},
-    "K": {"minimax": "English_ConfidentWoman", "speed": 1.05}
+    "K": {"minimax": "English_compelling_lady1", "speed": 1.05}
   },
   "shots": {
     "wide": {"bg": "bg_wide", "cast": {"D": "dave_down", "K": "karen_card", "L": "linda", "T": "tom"}, "foreground": "table"},

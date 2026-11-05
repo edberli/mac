@@ -21,9 +21,9 @@ EP = '/Volumes/core/AI-Workspace/Claude/mac/comedy-shorts/ep01_game_night'
 BEATS = f'{EP}/beats.json'
 ROOT = '/Volumes/core/AI-Workspace/Claude/mac-work/comedy'
 ASSETS = f'{ROOT}/assets'
-AUDIO = f'{ROOT}/audio_v3'
+AUDIO = f'{ROOT}/audio_v4'
 BUILD = f'{ROOT}/build'
-OUT_MP4 = f'{BUILD}/game_night_v3.mp4'
+OUT_MP4 = f'{BUILD}/game_night_v4.mp4'
 SR = 44100
 
 # Manual eye overrides (source-pixel coords): name -> [(cx, cy, rx, ry), (cx, cy, rx, ry)]
