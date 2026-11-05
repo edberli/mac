@@ -1,0 +1,110 @@
+[
+ {
+  "file": "l00.wav",
+  "dur": 2.232
+ },
+ {
+  "file": "l01.wav",
+  "dur": 3.112
+ },
+ {
+  "file": "l02.wav",
+  "dur": 0.773
+ },
+ {
+  "file": "l03.wav",
+  "dur": 2.102
+ },
+ {
+  "file": "l04.wav",
+  "dur": 0.382
+ },
+ {
+  "file": "l05.wav",
+  "dur": 1.937
+ },
+ {
+  "file": "l06.wav",
+  "dur": 1.297
+ },
+ {
+  "file": "l07.wav",
+  "dur": 1.504
+ },
+ {
+  "file": "l08.wav",
+  "dur": 0.533
+ },
+ {
+  "file": "l09.wav",
+  "dur": 4.13
+ },
+ {
+  "file": "l10.wav",
+  "dur": 0.867
+ },
+ {
+  "file": "l11.wav",
+  "dur": 3.287
+ },
+ {
+  "file": "l12.wav",
+  "dur": 0.379
+ },
+ {
+  "file": "l13.wav",
+  "dur": 0.557
+ },
+ {
+  "file": "l14.wav",
+  "dur": 0.27
+ },
+ {
+  "file": "l15.wav",
+  "dur": 1.113
+ },
+ {
+  "file": "l16.wav",
+  "dur": 2.006
+ },
+ null,
+ null,
+ null,
+ {
+  "file": "l20.wav",
+  "dur": 2.157
+ },
+ null,
+ null,
+ null,
+ {
+  "file": "l24.wav",
+  "dur": 0.369
+ },
+ {
+  "file": "l25.wav",
+  "dur": 1.026
+ },
+ {
+  "file": "l26.wav",
+  "dur": 1.178
+ },
+ {
+  "file": "l27.wav",
+  "dur": 1.651
+ },
+ null,
+ {
+  "file": "l29.wav",
+  "dur": 1.283
+ },
+ {
+  "file": "l30.wav",
+  "dur": 1.725
+ },
+ {
+  "file": "l31.wav",
+  "dur": 1.501
+ },
+ null
+]
