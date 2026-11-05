@@ -2075,6 +2075,32 @@ def hold_music_loop(sr=SR):
     return loop.astype(np.float32)             # unit RMS
 
 
+def sad_music(dur, sr=SR):
+    """ep07 v4: quiet, slow, sad long tone, original synthesis (no recording used). A-minor chord pad, one chord per 4 s,
+    cross-faded, each note with a slow pitch wobble (harmonica-like) and a gentle swell. float32, peak 0.9, dur seconds long."""
+    n = int(round(dur * sr))
+    t = np.arange(n, dtype=np.float64) / sr
+    chords = [(220.0, 261.63, 329.63), (174.61, 220.0, 261.63), (261.63, 329.63, 392.0), (196.0, 246.94, 293.66)]
+    seg, wv, depth = 4.0, 2 * math.pi * 4.6, 0.005
+    out = np.zeros(n, np.float64)
+    for k in range(int(math.ceil(dur / seg)) + 1):
+        t0 = k * seg - 0.6
+        m = (t >= t0) & (t < t0 + seg + 1.2)
+        if not m.any():
+            continue
+        tt = t[m]
+        w = np.sin(np.pi * np.clip((tt - t0) / (seg + 1.2), 0, 1)) ** 2
+
+        def ph(f):
+            return 2 * math.pi * f * (tt - depth * (np.cos(wv * tt) - 1) / wv)
+        tone = sum(0.5 * np.sin(ph(f)) + 0.2 * np.sin(ph(2 * f)) for f in chords[k % len(chords)])
+        out[m] += w * tone
+    out *= 0.8 + 0.2 * np.sin(2 * math.pi * t / 11.0)
+    out *= np.clip(t / 1.5, 0, 1)                          # slow fade-in
+    out = out / (np.abs(out).max() + 1e-9) * 0.9
+    return out.astype(np.float32)
+
+
 def build_audio(tl, total, path):
     n = int((total + 0.5) * SR)
     mix = np.zeros(n, np.float32)
@@ -2165,6 +2191,22 @@ def build_audio(tl, total, path):
         cl[:6] = [0.5, -0.35, 0.2, -0.1, 0.05, 0]
         cl += rngc.standard_normal(len(cl)).astype(np.float32) * np.exp(-np.arange(len(cl)) / (0.002 * SR)) * 0.08
         mix[i1:i1 + len(cl)] += cl * 0.6
+    # ep07 v4: sad long tone from the beat with sfx 'sad_music_start' to the end of the body (fade out at the end).
+    # Gated by that sfx name only, so no other episode reaches this branch.
+    sm0 = next((e['start'] for e in tl if e['beat'].get('sfx') == 'sad_music_start'), None)
+    if sm0 is not None:
+        i0, i1 = int(sm0 * SR), min(n, int(total * SR))
+        mus = sad_music((i1 - i0) / SR)
+        g = np.full(i1 - i0, 10 ** (-30 / 20), np.float32)   # v4 fix: music -6 dB (was -24) so dialogue clears music by >=10 dB
+        for e in tl:
+            if e['beat']['shot'] == 'sticker_close':        # pushed up a little under the sticker close
+                a_, b_ = int((e['start'] - sm0) * SR), int((e['start'] + e['dur'] - sm0) * SR)
+                g[max(a_, 0):max(min(b_, len(g)), 0)] = 10 ** (-24 / 20)   # sticker push also -6 dB (was -18)
+        k = int(0.3 * SR)
+        g = np.convolve(np.pad(g, (k, k), mode='edge'), np.ones(k) / k, 'same')[k:-k]
+        fo = int(1.5 * SR)
+        g[-fo:] *= np.linspace(1, 0, fo, dtype=np.float32)
+        mix[i0:i1] += mus * g
     # room tone: very faint low rumble + hiss
     rng = np.random.default_rng(3)
     rt = rng.standard_normal(n).astype(np.float32)
