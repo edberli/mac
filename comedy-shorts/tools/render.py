@@ -37,7 +37,12 @@ EPCFG = {
     'ep07_i_voted': dict(assets=[f'{ROOT}/assets_ep07', f'{ROOT}/assets_ep06', f'{ROOT}/assets_ep03', f'{ROOT}/assets_leads', f'{ROOT}/assets'],
                          audio=f'{ROOT}/audio_ep07', out=f'{BUILD}/ivoted_v1_phone.mp4',
                          end_tag=f'{SHORTS}/brand/end_tag.mp4', end_tag_secs=1.5, skip_shots=('end_tag',), limit=0.80),
+    # ep09 (It Says Pull): hallway / lot plates with a perspective-stamped PULL board, layout_ep09 / frame_ep09 / build_audio_ep09 below.
+    # The end_tag beat is a placeholder (dropped from the body); the real end card is concatenated once.
+    'ep09_it_says_pull': dict(assets=[f'{ROOT}/assets_ep09'], audio=f'{ROOT}/audio_ep09', out=f'{BUILD}/pull_v1_phone.mp4',
+                              end_tag=f'{SHORTS}/brand/end_tag.mp4', end_tag_secs=1.5, skip_shots=('end_tag',), limit=0.80),
 }
+EP09 = 'ep09_it_says_pull'
 # puppet-name aliases per episode (beats.json says 'russell', the ep06 seated Russell art is russell_s1)
 PUPPET_ALIAS = {'ep07_i_voted': {'russell': 'russell_s1'}}
 # set by configure()
@@ -77,6 +82,8 @@ EYE_OVERRIDES_EP = {
                               'marcus_box': [(468, 680, 62, 62), (587, 655, 58, 58)],
                               'neil_box': [(407, 367, 53, 28), (550, 356, 50, 24)]},
     'ep07_i_voted': {'marcus_door': [(436, 459, 62, 62), (557, 430, 59, 59)]},
+    # ep09: old Neil's lenses sit under heavy lids (only the lower half of each lens is white); pupils go in that lower half
+    'ep09_it_says_pull': {'neil_old': [(400, 358, 62, 26), (536, 355, 62, 26)]},
 }
 # HIP_EP: absolute source y (inside the cropped puppet). HIP_FRAC_EP: fraction of the cropped puppet height (used until
 # a puppet is measured; run `render.py --ep ep06_grandfather_auto --eyes` and read the cyan hip line, then pin it in HIP_EP).
@@ -184,7 +191,10 @@ class Puppet:
 
     def __init__(self, name, eyes=True):
         self.name = name
-        im = np.asarray(Image.open(asset_path(name)).convert('RGB')).astype(np.float32)
+        flip = name.endswith('@flip')                                  # ep09: horizontally mirrored copy of an art file
+        im = np.asarray(Image.open(asset_path(name[:-5] if flip else name)).convert('RGB')).astype(np.float32)
+        if flip:
+            im = np.ascontiguousarray(im[:, ::-1])
         self.rgb, self.alpha = self.key(im)
         ys, xs = np.where(self.alpha > 0.04)
         self.x0, self.x1, self.y0, self.y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
@@ -778,7 +788,7 @@ def layout_ep01(scene, shot):
 def layout_shot(scene, shot):
     if shot in scene.sprites:
         return scene.sprites[shot]
-    return {'ep02_on_hold': layout_ep02, 'ep03_apology': layout_ep03, 'ep06_grandfather_auto': layout_ep06, 'ep07_i_voted': layout_ep07}.get(EPNAME, layout_ep01)(scene, shot)
+    return {'ep02_on_hold': layout_ep02, 'ep03_apology': layout_ep03, 'ep06_grandfather_auto': layout_ep06, 'ep07_i_voted': layout_ep07, EP09: layout_ep09}.get(EPNAME, layout_ep01)(scene, shot)
 
 
 def blob_shadows(arr, items, blur=6):
@@ -1024,6 +1034,266 @@ def fit_sprite(role, pup, X, headw, notes, eye_y=None, hip_y=None, max_shift=Non
 
 
 # --------------------------------------------------------------------------------------
+# ep09 (It Says Pull): plates with a perspective-stamped PULL board, actors placed in plate ("source") coordinates, per-frame renderer
+# --------------------------------------------------------------------------------------
+EP09_K = (H + 8) / 1536.0       # source plate (1024x1536) -> frame scale at zoom 1 (just covers the 1080x1920 frame)
+# Door leaf and blank board corners (tl, tr, br, bl) in source-plate pixels, from tools/ep09_sign_measure.py (hall: colour threshold +
+# contour; open leaf / old hall / lot: read off 1:1 grid crops, the dim light defeats the threshold).
+EP09_QUADS = {
+    'bg_hall': dict(door=[[541, 332], [936, 204], [936, 1160], [539, 1033]], sign=[[581, 429], [902, 373], [897, 585], [578, 602]]),
+    'bg_hall_open': dict(door=[[808, 350], [938, 212], [938, 1115], [806, 1030]], sign=[[812, 442], [922, 374], [920, 563], [813, 605]]),
+    'bg_hall_old': dict(door=[[550, 325], [937, 207], [937, 1155], [550, 1030]], sign=[[575, 418], [905, 368], [907, 590], [577, 605]]),
+    'bg_lot': dict(door=[[495, 435], [802, 372], [805, 1120], [495, 1072]], sign=[[517, 535], [780, 492], [782, 660], [517, 680]]),
+}
+# the two worn hand prints on bg_hall_old (source-plate boxes x0, y0, x1, y1); they are lifted off the door and re-stamped under Russell's palms
+EP09_PRINT_BOXES = [(606, 640, 706, 766), (718, 636, 822, 768)]
+
+
+def ep09_cam(z=1.0, px=None, anchor=None, at=None):
+    """Plate placement: scale k, top-left (px, py) of the scaled plate in frame coordinates. anchor (source px) lands on screen point `at`."""
+    k = EP09_K * z
+    pw, ph = int(round(1024 * k)), int(round(1536 * k))
+    if anchor is not None:
+        x, y = at[0] - anchor[0] * k, at[1] - anchor[1] * k
+    else:
+        x, y = (W + 4 - pw if px is None else px), -4
+    x = min(-4, max(x, W + 4 - pw))
+    y = min(-4, max(y, H + 4 - ph))
+    return dict(k=k, px=int(round(x)), py=int(round(y)))
+
+
+EP09_CAMS = {'hall': ep09_cam(), 'lot': ep09_cam(px=-120),
+             'lot_marcus': ep09_cam(1.3, anchor=(560, 800), at=(470, 900)),
+             'lot_neil': ep09_cam(1.15, anchor=(500, 850), at=(560, 900)),
+             'lot_russell': ep09_cam(1.7, anchor=(600, 850), at=(520, 850))}
+
+# Actors in source-plate coordinates. S = art scale (source px per art px), tipx = rightmost art pixel (fingertips) or cx = bbox centre,
+# feet = bottom of the bbox. Hall figures are sized to the 2 m door (door ~ 850 source px tall); the lot door is ~0.82 of that.
+EP09_ACT = {
+    'R': dict(puppet='russell_push', role='R', S=0.44, tipx=655, feet=1180),
+    'M': dict(puppet='marcus_push', role='M', S=0.43, tipx=610, feet=965),
+    'R_old': dict(puppet='russell_push_old', role='R', S=0.44, tipx=655, feet=1180),
+    'M_old': dict(puppet='marcus_push_old', role='M', S=0.43, tipx=610, feet=965),
+    'N': dict(puppet='neil_point', role='N', S=0.5, tipx=590, feet=1110),
+    # v2: the nurse stands in the doorway, a little further back than the pushers (smaller S, feet on the threshold ~ frame y 1360),
+    # her door hand on the leaf edge (fingertip ~ frame x 928); her left side keeps >= 80 px from both pushers' arms.
+    'NU': dict(puppet='nurse', role='NU', S=0.36, tipx=900, feet=1087),
+    'D': dict(puppet='daughter@flip', role='D', S=0.5, cx=590, feet=1330),
+}
+
+
+def _ep09_lot(a):
+    d = dict(a)
+    d['tipx'] = 495 + (a['tipx'] - 540) * 0.777
+    d['feet'] = 1096 + (a['feet'] - 1100) * 0.83
+    d['S'] = a['S'] * 0.82
+    return d
+
+
+EP09_ACT['R_lot'] = _ep09_lot(EP09_ACT['R_old'])
+EP09_ACT['M_lot'] = _ep09_lot(EP09_ACT['M_old'])
+EP09_ACT['N_lot'] = dict(puppet='neil_old', role='N', S=0.46, cx=300, feet=1170)
+# v2 hall_open_nurse: pushers keep their bodies, palms pulled back so the nurse fits in the doorway (palm-to-nurse gap 85 / 113 px)
+EP09_ACT['M_open'] = dict(EP09_ACT['M'], tipx=564)
+EP09_ACT['R_open'] = dict(EP09_ACT['R'], tipx=565)
+# v2 lot_neil: old Neil moved to the left edge (-110 frame px), Marcus +240 and Russell +200 frame px to the right (gap 87 / 83 px, all faces visible)
+_k_lot_neil = EP09_CAMS['lot_neil']['k']
+EP09_ACT['N_lotB'] = dict(EP09_ACT['N_lot'], cx=EP09_ACT['N_lot']['cx'] - 110 / _k_lot_neil)
+EP09_ACT['M_lotB'] = dict(EP09_ACT['M_lot'], tipx=EP09_ACT['M_lot']['tipx'] + 240 / _k_lot_neil)
+EP09_ACT['R_lotB'] = dict(EP09_ACT['R_lot'], tipx=EP09_ACT['R_lot']['tipx'] + 200 / _k_lot_neil)
+EP09_SHOTS = {
+    'hall_russell': dict(bg='bg_hall', cam='hall', actors=['R']),
+    'hall_neil': dict(bg='bg_hall', cam='hall', actors=['N']),
+    'hall_both': dict(bg='bg_hall', cam='hall', actors=['M', 'R']),
+    'hall_door_close': dict(bg='bg_hall', cam='hall', actors=['M', 'R']),
+    'hall_open_nurse': dict(bg='bg_hall_open', cam='hall', actors=['NU', 'M_open', 'R_open']),
+    'old_russell': dict(bg='bg_hall_old', cam='hall', actors=['R_old'], prints='R_old'),
+    'old_daughter': dict(bg='bg_hall_old', cam='hall', actors=['R_old', 'D'], prints='R_old'),
+    'lot_wide': dict(bg='bg_lot', cam='lot', actors=['R_lot']),
+    'lot_marcus': dict(bg='bg_lot', cam='lot_marcus', actors=['M_lot', 'R_lot']),
+    'lot_neil': dict(bg='bg_lot', cam='lot_neil', actors=['N_lotB', 'M_lotB', 'R_lotB']),
+    'lot_russell': dict(bg='bg_lot', cam='lot_russell', actors=['M_lot', 'R_lot']),
+}
+EP09_CAPTION_Y = 1795      # caption card centre: low, so it never covers the door board or the figures' hands
+
+
+def ep09_pull_mask(tw, th):
+    """Float mask (th, tw) of a big heavy PULL filling the board texture (board aspect ~1.67)."""
+    ss = 2
+    img = Image.new('L', (tw * ss, th * ss), 0)
+    d = ImageDraw.Draw(img)
+    size = int(th * ss * 0.9)
+    while True:
+        f = font(FONT_HEAVY, size)
+        sw_ = max(2, int(size * 0.03))
+        bb = d.textbbox((0, 0), 'PULL', font=f, stroke_width=sw_)
+        if bb[2] - bb[0] <= tw * ss * 0.84 and bb[3] - bb[1] <= th * ss * 0.64:
+            break
+        size -= 4
+    d.text((tw * ss / 2 - (bb[0] + bb[2]) / 2, th * ss / 2 - (bb[1] + bb[3]) / 2), 'PULL', font=f, fill=255, stroke_width=sw_, stroke_fill=255)
+    return np.asarray(img.resize((tw, th), Image.LANCZOS)).astype(np.float32) / 255
+
+
+def ep09_stamp_sign(arr, quad, k, ox, oy):
+    """Warp the PULL lettering onto the measured board quad (perspective) and ink it into the plate, keeping the paper grain."""
+    q = np.float32([[x * k + ox, y * k + oy] for x, y in quad])
+    tw = int(max(np.linalg.norm(q[1] - q[0]), np.linalg.norm(q[2] - q[3])) * 1.6)
+    th = int(tw / 1.67)
+    m = cv2.GaussianBlur(ep09_pull_mask(tw, th), (0, 0), 0.9)
+    M = cv2.getPerspectiveTransform(np.float32([[0, 0], [tw, 0], [tw, th], [0, th]]), q)
+    warped = cv2.warpPerspective(m, M, (arr.shape[1], arr.shape[0]), flags=cv2.INTER_LINEAR)
+    f = arr.astype(np.float32)
+    lum = f.mean(2)
+    loc = cv2.GaussianBlur(lum, (0, 0), 10)
+    grain = np.clip(lum / np.maximum(loc, 1.0), 0.82, 1.18)[..., None]
+    ink = np.array([60, 32, 24], np.float32) * grain
+    al = (warped * 0.97)[..., None]
+    return np.clip(f * (1 - al) + ink * al, 0, 255).astype(np.uint8)
+
+
+def ep09_lift_prints(src):
+    """Inpaint the two worn hand prints off the old door; return (clean PIL image, [(rgba patch, centre in source px)])."""
+    a = np.asarray(src).copy()
+    clean = a.copy()
+    patches = []
+    for (x0, y0, x1, y1) in EP09_PRINT_BOXES:
+        box = a[y0:y1, x0:x1].astype(np.float32)
+        lum = box.mean(2)
+        door = np.median(lum[:12])
+        m = (lum > door + 16).astype(np.uint8)
+        m = cv2.morphologyEx(m, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+        m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+        full = np.zeros(a.shape[:2], np.uint8)
+        full[y0:y1, x0:x1] = m
+        clean = cv2.inpaint(clean, cv2.dilate(full, np.ones((9, 9), np.uint8)), 6, cv2.INPAINT_TELEA)
+        al = cv2.GaussianBlur(m.astype(np.float32), (0, 0), 1.2)
+        ys, xs = np.where(m > 0)
+        cx, cy = x0 + xs.mean(), y0 + ys.mean()
+        patches.append((np.dstack([box, al * 255]).astype(np.uint8), (cx, cy), (xs.mean(), ys.mean())))
+    return Image.fromarray(clean), patches
+
+
+def ep09_foot_shadow(pup, s):
+    """Soft contact shadow hugging the lowest edge of the shoes. Returns (premult RGBA, dx, dy) with (dx, dy) = top-left relative to the bbox."""
+    a = pup.alpha > 0.5
+    h, w = a.shape
+    sw, sh = int(round(w * s)), int(round(h * s))
+    s0 = int(h * 0.80)
+    sub = a[s0:]
+    ok = sub.any(0)
+    bot = sub.shape[0] - 1 - np.argmax(sub[::-1], axis=0)
+    pad = 40
+    m = np.zeros((sh + pad, sw), np.float32)
+    for x in np.where(ok)[0][::2]:
+        xs_ = min(sw - 1, int(x * s))
+        ys_ = int((s0 + bot[x]) * s)
+        m[max(0, ys_ - 3):ys_ + 9, max(0, xs_ - 1):xs_ + 2] = 1
+    m = cv2.GaussianBlur(m, (0, 0), 8 * max(0.5, s / 0.5)) * 1.3
+    lay = np.zeros((sh + pad, sw, 4), np.uint8)
+    lay[..., 3] = np.clip(m * 0.55 * 255, 0, 150).astype(np.uint8)
+    return lay
+
+
+def ep09_sprite(scene, act, cam):
+    pup = scene.get_puppet(act['puppet'])
+    k = cam['k']
+    s = act['S'] * k
+    if 'tipx' in act:
+        X = act['tipx'] * k + cam['px'] - (pup.w - pup.ex) * s
+    else:
+        X = act['cx'] * k + cam['px'] - (pup.w / 2 - pup.ex) * s
+    Y = act['feet'] * k + cam['py'] - (pup.h - pup.ey) * s
+    spr = Sprite(act['role'], pup, s, X, Y, 'single', (6, 8), pivot='feet')
+    spr.foot = ep09_foot_shadow(pup, s)
+    spr.foot_xy = (int(round(X - pup.ex * s)), int(round(Y - pup.ey * s)))
+    spr.k_ep09 = (X, Y, s)
+    return spr
+
+
+def ep09_palms(spr):
+    """Frame-space centres of the two pushing palms: the arm band is split at the valley between the two hands (rightmost-x profile)."""
+    pup = spr.pup
+    X, Y, s = spr.k_ep09
+    a = pup.alpha > 0.5
+    r = np.array([np.where(a[y])[0].max() if a[y].any() else 0 for y in range(pup.h)], np.float64)
+    band = np.where(r > 0.85 * pup.w)[0]
+    y0, y1 = int(band.min()), int(band.max())
+    lo_, hi_ = y0 + int(0.3 * (y1 - y0)), y0 + int(0.7 * (y1 - y0))
+    ym = lo_ + int(np.argmin(r[lo_:hi_ + 1]))
+    out = []
+    for ya, yb in ((y0, ym), (ym + 1, y1)):
+        sel = np.zeros_like(a)
+        sel[ya:yb + 1, pup.w - 130:] = a[ya:yb + 1, pup.w - 130:]
+        yy, xx = np.where(sel)
+        out.append((X + (xx.mean() - pup.ex) * s, Y + (yy.mean() - pup.ey) * s))
+    return out
+
+
+def ep09_plate(scene, name, cam, prints=None):
+    key = ('ep09plate', name, cam['k'], cam['px'], cam['py'], tuple(prints) if prints else None)
+    if key in scene.bgs:
+        return scene.bgs[key]
+    src = Image.open(asset_path(name)).convert('RGB')
+    patches = []
+    if prints:
+        src, patches = ep09_lift_prints(src)
+    k = cam['k']
+    pw, ph = int(round(1024 * k)), int(round(1536 * k))
+    px, py = cam['px'], cam['py']
+    assert px <= -4 and py <= -4 and px + pw >= W + 4 and py + ph >= H + 4, ('plate does not cover frame', name, cam)
+    a = np.asarray(src.resize((pw, ph), Image.LANCZOS))
+    arr = np.ascontiguousarray(a[-4 - py:H + 4 - py, -4 - px:W + 4 - px])
+    for (patch, _, (hx, hy)), (fx, fy) in zip(patches, prints or []):
+        sc = k * 1.0                         # prints sit under the hands a touch larger than the palm
+        pw_, ph_ = max(2, int(patch.shape[1] * sc)), max(2, int(patch.shape[0] * sc))
+        pr = cv2.resize(patch, (pw_, ph_), interpolation=cv2.INTER_AREA).astype(np.float32)
+        x0, y0 = int(fx + 4 - hx * sc), int(fy + 4 - hy * sc - 26)   # a little above the palm so the printed fingers show over the hand
+        al = np.clip(pr[..., 3:] / 255 * 1.5, 0, 1)
+        ys0, xs0 = max(0, y0), max(0, x0)
+        ys1, xs1 = min(arr.shape[0], y0 + ph_), min(arr.shape[1], x0 + pw_)
+        if ys1 > ys0 and xs1 > xs0:
+            sub = pr[ys0 - y0:ys1 - y0, xs0 - x0:xs1 - x0]
+            sa = al[ys0 - y0:ys1 - y0, xs0 - x0:xs1 - x0]
+            arr[ys0:ys1, xs0:xs1] = np.clip(arr[ys0:ys1, xs0:xs1] * (1 - sa) + sub[..., :3] * sa, 0, 255).astype(np.uint8)
+    arr = ep09_stamp_sign(arr, EP09_QUADS[name]['sign'], k, px + 4, py + 4)
+    scene.bgs[key] = arr
+    return arr
+
+
+def layout_ep09(scene, shot):
+    if shot in scene.sprites:
+        return scene.sprites[shot]
+    out = {'bg': None, 'sprites': [], 'table': None, 'notes': [], 'items': None, 'actors': [], 'door': None}
+    if shot not in EP09_SHOTS:                                  # card_18 (paper card, drawn by make_title)
+        out['notes'].append(f'{shot}: card / no plate')
+        scene.sprites[shot] = out
+        return out
+    sd = EP09_SHOTS[shot]
+    cam = EP09_CAMS[sd['cam']]
+    for an in sd['actors']:
+        act = EP09_ACT[an]
+        spr = ep09_sprite(scene, act, cam)
+        out['actors'].append((an, act['role'], spr))
+        out['sprites'].append((act['role'], spr))
+        X, Y, s = spr.k_ep09
+        out['notes'].append(f"{an}/{spr.pup.name}: art scale {s:.3f}, bbox x {spr.ox + PAD:.0f}..{spr.ox + PAD + spr.fig_w:.0f}, feet y {spr.feet_y:.0f}, head {spr.headw_px:.0f}px")
+    prints = None
+    if sd.get('prints'):
+        spr = [x[2] for x in out['actors'] if x[0] == sd['prints']][0]
+        prints = tuple((round(a_, 1), round(b_, 1)) for a_, b_ in ep09_palms(spr))
+        out['notes'].append(f'palms (frame px) {prints}')
+    plate = ep09_plate(scene, sd['bg'], cam, prints)
+    out['bg'] = plate
+    # door leaf mask (plate coordinates incl. 4 px margin) for the door shake
+    q = np.float32([[x * cam['k'] + cam['px'] + 4, y * cam['k'] + cam['py'] + 4] for x, y in EP09_QUADS[sd['bg']]['door']])
+    dm = np.zeros(plate.shape[:2], np.float32)
+    cv2.fillConvexPoly(dm, q.astype(np.int32), 1.0)
+    out['door'] = cv2.GaussianBlur(dm, (0, 0), 2.0)
+    scene.sprites[shot] = out
+    return out
+
+
+# --------------------------------------------------------------------------------------
 # audio / timeline
 # --------------------------------------------------------------------------------------
 def phone_filter(d):
@@ -1038,6 +1308,13 @@ def phone_filter(d):
     rms_out = math.sqrt(float((y ** 2).mean())) + 1e-9
     y *= rms_in / rms_out                       # keep the level the voice had
     return np.clip(y, -0.98, 0.98).astype(np.float32)
+
+
+def door_lowpass(d, fc, gain=1.0):
+    """Muffled voice through a door: 4th-order low-pass at fc plus a little make-up gain, so the words stay readable."""
+    from scipy.signal import butter, sosfilt
+    y = sosfilt(butter(4, fc, btype='lowpass', fs=SR, output='sos'), d.astype(np.float64))
+    return np.clip(y * gain, -0.98, 0.98).astype(np.float32)
 
 
 def build_timeline(spec, manifest, quiet=False):
@@ -1066,6 +1343,8 @@ def build_timeline(spec, manifest, quiet=False):
             env_src = d
             if spec['voices'].get(b.get('say'), {}).get('phone'):
                 d = phone_filter(d)
+            if b.get('lowpass'):                      # ep09: voice from behind the door (mouth envelope still uses the clean take)
+                d = door_lowpass(d, float(b['lowpass']), float(b.get('lowpass_gain', 1.0)))
             adur = len(d) / SR
             dur = adur + float(b.get('after', 0))
             entry['audio'] = d
@@ -1412,7 +1691,7 @@ class Renderer:
         ov = -1
         if b.get('overlay') and lo >= b.get('overlay_from', 0.0) - 1e-9:
             ov = min(3, int((lo - b.get('overlay_from', 0.0)) * OUT_FPS + 1e-6))
-        push = int(lo * OUT_FPS + 1e-6) if (b.get('push') or b.get('burst') or b.get('slide_out')) else 0
+        push = int(lo * OUT_FPS + 1e-6) if (b.get('push') or b.get('burst') or b.get('slide_out') or b.get('anim')) else 0
         return shot, ov, push
 
     def beat_at(self, T):
@@ -1540,6 +1819,8 @@ class Renderer:
             lines = ['GAME', 'NIGHT']
         elif text == 'FOUR HOURS LATER':
             lines = ['FOUR HOURS', 'LATER']
+        elif text == '18 YEARS LATER':
+            lines = ['18 YEARS', 'LATER']
         else:
             lines = text.split(' ')
         bgc = np.array([58, 38, 27], np.float32)
@@ -1612,6 +1893,8 @@ class Renderer:
         hold = 'hold' in b
         spoken = not hold and e['audio'] is not None
         shot, ov_phase, _ = self.variant(t_out)
+        if EPNAME == EP09:
+            return self.frame_ep09(T, aidx, t_out)
         pair = aidx // 2
         rng_bg = np.random.default_rng(1000 + pair)
         if shot in ('title', 'card'):
@@ -1865,6 +2148,236 @@ class Renderer:
 
 
 # --------------------------------------------------------------------------------------
+# ep09 frame renderer (attached to Renderer): hall / old hall / lot scenes, hit + rush + walk animation, blast, caption low
+# --------------------------------------------------------------------------------------
+EP09_RUSH_D = 540.0       # Russell starts this many px left of his contact position (hands at the left screen edge on frame 0)
+EP09_RUSH_DM = 760.0      # Marcus starts fully off-screen
+
+
+def _ep09_u(x):
+    return min(1.0, max(0.0, x))
+
+
+def ep09_motion(role, shot, b, lo):
+    """(dx, dy, angle) of one actor at beat-local time lo (exact output time)."""
+    kind = b.get('anim')
+    if kind == 'hit' and role == 'R':                      # hall_russell opener: rush in, slam, rebound 0.3 s, back onto the door
+        if lo < 0.2:
+            u = lo / 0.2
+            return -EP09_RUSH_D * (1 - u), 0.0, -3.0 * (1 - u)
+        if lo < 0.5:                                        # rebound (ease out), small hop, leaning back
+            v = _ep09_u((lo - 0.2) / 0.3)
+            e_ = 1 - (1 - v) ** 2
+            return -92.0 * e_, -16.0 * math.sin(math.pi * min(1.0, v * 1.1)), 5.0 * e_
+        if lo < 0.78:                                       # back to the door
+            v = _ep09_u((lo - 0.5) / 0.28)
+            e_ = v * v * (3 - 2 * v)
+            return -92.0 * (1 - e_), 0.0, 5.0 * (1 - e_)
+        return 0.0, 0.0, 0.0
+    if kind == 'rush_m' and role == 'M':                    # Marcus charges in from the left in the first 0.3 s
+        if lo < 0.3:
+            u = lo / 0.3
+            return -EP09_RUSH_DM * (1 - u) ** 1.0, 0.0, -4.0 * (1 - u)
+        if lo < 0.45:                                       # tiny settle against the door
+            v = (lo - 0.3) / 0.15
+            return 14.0 * math.sin(math.pi * v) * (1 - v), 0.0, 0.0
+        return 0.0, 0.0, 0.0
+    if kind == 'walk' and role == 'D':                      # daughter walks out from the door edge (right) across the frame, to the left
+        t = lo + float(b.get('walk_t0', 0.0))
+        T_all = 2.3
+        x0, x1 = W + 270.0, -270.0
+        x = x0 + (x1 - x0) * min(1.0, t / T_all)
+        return x - W / 2.0, -10.0 * abs(math.sin(2 * math.pi * 1.7 * t)), 1.4 * math.sin(2 * math.pi * 1.7 * t)
+    return 0.0, 0.0, 0.0
+
+
+def ep09_shake(b, lo, n):
+    """Whole-frame shake (px) for impacts: slam (0.15 s), door opening, door closing, blast."""
+    kind = b.get('anim')
+    A = 0.0
+    if kind == 'hit' and 0.2 <= lo < 0.35:
+        A = 16.0 * (1 - (lo - 0.2) / 0.15)
+    elif kind == 'open' and lo < 0.14:
+        A = 6.0 * (1 - lo / 0.14)
+    elif kind == 'door_close' and lo < 0.12:
+        A = 3.5 * (1 - lo / 0.12)
+    elif kind == 'blast' and lo < 0.4:
+        A = 14.0 * (1 - lo / 0.4)
+    if A <= 0:
+        return 0.0, 0.0
+    r = np.random.default_rng(7000 + n).uniform(-1, 1, 2)
+    return A * r[0], A * 0.7 * r[1]
+
+
+def ep09_door_shake(b, lo):
+    """Small damped vibration of the door leaf (px)."""
+    kind = b.get('anim')
+    if kind == 'hit' and lo >= 0.2:
+        u = lo - 0.2
+        return 5.0 * math.exp(-u / 0.13) * math.sin(2 * math.pi * 24 * u), 1.6 * math.exp(-u / 0.13) * math.sin(2 * math.pi * 31 * u)
+    if kind == 'door_close' and lo < 0.4:
+        return 2.2 * math.exp(-lo / 0.1) * math.sin(2 * math.pi * 22 * lo), 0.0
+    return 0.0, 0.0
+
+
+def ep09_blast_layer(fr, lo):
+    """Paper shards and dust thrown out of the door (drawn before the grade). fr is modified in place."""
+    r = np.random.default_rng(404)
+    n = 150
+    ang = r.uniform(0, 2 * math.pi, n)
+    spd = r.uniform(500, 2800, n)
+    size = r.uniform(14, 62, n)
+    spin = r.uniform(-14, 14, n)
+    ph = r.uniform(0, 6.28, n)
+    cols = np.array([(250, 246, 236), (238, 226, 198), (224, 204, 168), (205, 180, 140), (170, 150, 120), (252, 252, 250)], np.float32)
+    ci = r.integers(0, len(cols), n)
+    cx0, cy0 = 760.0, 860.0
+    ov = np.zeros((H, W, 4), np.float32)
+    t = lo
+    for i in range(n):
+        d = spd[i] * (1 - math.exp(-t / 0.12)) * 0.12 * 3.0
+        x = cx0 + math.cos(ang[i]) * d
+        y = cy0 + math.sin(ang[i]) * d * 0.8 + 380 * t * t
+        sz = size[i] * (1 + 0.9 * t / 0.4)
+        th = ph[i] + spin[i] * t
+        pts = np.float32([[-1.0, -0.6], [1.0, -0.5], [0.8, 0.7], [-0.9, 0.55]]) * sz
+        c, s_ = math.cos(th), math.sin(th)
+        pts = pts @ np.float32([[c, s_], [-s_, c]]) + np.float32([x, y])
+        cv2.fillConvexPoly(ov, pts.astype(np.int32), tuple(float(v) for v in cols[ci[i]]) + (235.0,), lineType=cv2.LINE_AA)
+    dust = np.zeros((H, W), np.float32)
+    for i in range(34):
+        d = (200 + r.uniform(0, 700)) * (1 - math.exp(-t / 0.15))
+        cv2.circle(dust, (int(cx0 + math.cos(ang[i]) * d), int(cy0 + math.sin(ang[i]) * d * 0.8)), int(60 + 120 * t / 0.4), 0.55, -1)
+    dust = cv2.GaussianBlur(dust, (0, 0), 38)
+    a = ov[..., 3:] / 255
+    fr[:] = np.clip(fr * (1 - a) + ov[..., :3] * a, 0, 255).astype(np.uint8)
+    dcol = np.array([232, 216, 186], np.float32)
+    fr[:] = np.clip(fr * (1 - dust[..., None]) + dcol * dust[..., None], 0, 255).astype(np.uint8)
+
+
+def _ep09_actor_layer(self, spr, role, b, e, local, shot, say, hold):
+    """Sprite canvas with eyes (look dict, closed lids) and mouth (speech envelope) drawn on."""
+    fr_layer = spr.canvas.copy()
+    look = b.get('look', {})
+    lk = look.get(role, 'center')
+    vx, vy = LOOK_X[lk], LOOK_Y[lk]
+    for (cx, cy, rx, ry) in spr.eyes:
+        if lk == 'eyes_closed':
+            lsp, lax, lay_ = spr.lid(rx, ry)
+            over_layer(fr_layer, lsp, int(round(cx - lax)), int(round(cy - lay_)))
+            continue
+        r = 0.32 * (rx + ry) / 2
+        psp, ax, ay = pupil_sprite(max(r, 2))
+        px = cx + vx * rx
+        py = cy + vy * ry
+        if lk == 'eyes_down':
+            py = cy + min(vy * ry, max(0.0, ry - r))
+        over_layer(fr_layer, psp, int(round(px - ax)), int(round(py - ay)))
+    rest = self.rest[role]
+    lev = 0.0
+    if role == say:
+        n = env_at(e['env'], local + 0.04)
+        n_prev = env_at(e['env'], max(0.0, local - 1 / ANIM_FPS + 0.04))
+        lev = max(n, 0.45 * n_prev)
+        if n < 0.16:
+            shape = rest
+        elif n < 0.5:
+            shape = 'open_s'
+        elif n < 0.85:
+            shape = 'open_m'
+        else:
+            shape = 'open_l'
+    else:
+        shape = rest
+    ms, mx, my = spr.mouth(shape)
+    over_layer(fr_layer, ms, int(round(spr.ex - mx)), int(round(spr.ey + 1.1 * spr.eyew - my)))
+    return fr_layer, lev
+
+
+def _frame_ep09(self, T, aidx, t_out=None):
+    bi = self.beat_at(T)
+    e = self.tl[bi]
+    b = e['beat']
+    t_out = T if t_out is None else max(T, t_out)
+    lo = max(0.0, t_out - e['start'])                     # exact (30 fps) beat-local time: motion, shake, flash
+    local = max(0.0, T - e['start'])                      # snapped to the 12 fps animation grid: mouth, jitter
+    hold = 'hold' in b
+    spoken = not hold and e['audio'] is not None
+    say = b.get('say') if spoken else None
+    shot, _, _ = self.variant(t_out)
+    pair = aidx // 2
+    n_out = int(round(t_out * OUT_FPS))
+    if shot == 'card_18':                                 # paper card on the dark ground (existing title art)
+        bg, letters = self.make_title('18 YEARS LATER')
+        fr = bg.copy()
+        for li, (lay, x, y) in enumerate(letters):
+            r = np.random.default_rng(5000 + pair * 17 + li)
+            over(fr, lay, x + int(r.integers(-1, 2)), y + int(r.integers(-1, 2)))
+        return self.grade(fr, aidx)
+    lay = layout_ep09(self.scene, shot)
+    rng_bg = np.random.default_rng(1000 + pair)
+    wx, wy = (int(v) for v in rng_bg.integers(-1, 2, size=2))
+    kind = b.get('anim')
+    moving = (kind == 'hit' and lo < 0.8) or (kind == 'rush_m' and lo < 0.5) or kind == 'walk'
+    offs = [0.0] if not moving else list(np.linspace(-0.012, 0.012, 9))
+
+    def draw(tl_):
+        base = lay['bg']
+        ddx, ddy = ep09_door_shake(b, tl_)
+        if abs(ddx) > 0.05 or abs(ddy) > 0.05:
+            sh_ = cv2.warpAffine(base, np.float32([[1, 0, ddx], [0, 1, ddy]]), (base.shape[1], base.shape[0]), borderMode=cv2.BORDER_REFLECT)
+            m_ = lay['door'][..., None]
+            base = np.clip(base * (1 - m_) + sh_ * m_, 0, 255).astype(np.uint8)
+        fr = base[4 + wy:4 + wy + H, 4 + wx:4 + wx + W].copy()
+        for an, role, spr in lay['actors']:
+            dx, dy, ang = ep09_motion(role, shot, b, tl_)
+            lay_img, lev = self.ep09_actor(spr, role, b, e, local, shot, say, hold)
+            r = np.random.default_rng(shash(role, pair))
+            amp_p, amp_a = (0.5, 0.05) if hold else (1.2, 0.15)
+            jx, jy = r.uniform(-amp_p, amp_p, 2)
+            ja = r.uniform(-amp_a, amp_a)
+            if role == say:                               # feet stay planted: a small rock about the feet, no hop
+                ang += 1.3 * min(1.0, lev) * (1 if math.sin(aidx * 2.3 + 0.7) > 0 else -1)
+            ang += b.get('tilt', {}).get(role, 0.0)
+            over(fr, spr.foot, spr.foot_xy[0] + int(round(dx)), spr.foot_xy[1])    # contact shadow follows the translation only
+            M = cv2.getRotationMatrix2D(spr.pivot, ang + ja, 1.0)
+            M[:, 2] += (jx + dx, jy + dy)
+            warped = cv2.warpAffine(lay_img, M, (lay_img.shape[1], lay_img.shape[0]), flags=cv2.INTER_LINEAR,
+                                    borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))
+            over(fr, warped, spr.ox, spr.oy)
+        if kind == 'blast' and tl_ < 0.4:
+            ep09_blast_layer(fr, tl_)
+        return fr
+
+    if len(offs) == 1:
+        fr = draw(lo)
+    else:
+        acc = None
+        for o in offs:
+            f_ = draw(max(0.0, lo + o)).astype(np.float32)
+            acc = f_ if acc is None else acc + f_
+        fr = np.clip(acc / len(offs), 0, 255).astype(np.uint8)
+    sx, sy = ep09_shake(b, lo, n_out)
+    if abs(sx) > 0.3 or abs(sy) > 0.3:
+        fr = cv2.warpAffine(fr, np.float32([[1, 0, sx], [0, 1, sy]]), (W, H), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+    owner = self.caption_owner(bi)
+    if owner is not None:
+        cap = self.caption(owner)
+        r = np.random.default_rng(321 + pair)
+        ox, oy = (int(v) for v in r.integers(-1, 2, size=2))
+        over(fr, cap, int(W / 2 - cap.shape[1] / 2) + ox, int(EP09_CAPTION_Y - cap.shape[0] / 2) + oy)
+    fr = self.grade(fr, aidx)
+    if kind == 'blast' and lo < 0.4:                      # white flash: hot first frames, then thinning toward the hard cut
+        f = [0.55, 0.95, 1.0, 0.98, 0.94, 0.9, 0.85, 0.8, 0.74, 0.68, 0.6, 0.54, 0.48][min(12, int(lo * OUT_FPS + 1e-6))]
+        fr = np.clip(fr.astype(np.float32) * (1 - f) + 255 * f, 0, 255).astype(np.uint8)
+    return fr
+
+
+Renderer.ep09_actor = _ep09_actor_layer
+Renderer.frame_ep09 = _frame_ep09
+
+
+# --------------------------------------------------------------------------------------
 # audio mix
 # --------------------------------------------------------------------------------------
 def wood_tick(sr=SR, seed=0, pitch=1.0):
@@ -2101,7 +2614,145 @@ def sad_music(dur, sr=SR):
     return out.astype(np.float32)
 
 
+# --------------------------------------------------------------------------------------
+# ep09 audio: synthesised door slam / latch / door open / blast / wind (original synthesis, no samples), no music
+# --------------------------------------------------------------------------------------
+def sfx09_hit(sr=SR):
+    """Body slamming into a door: low thump + wood crack + panel rattle. 0.55 s."""
+    from scipy.signal import butter, sosfilt
+    n = int(0.55 * sr)
+    t = np.arange(n) / sr
+    rng = np.random.default_rng(91)
+    f = 52 + 120 * np.exp(-t / 0.045)
+    thump = np.sin(2 * np.pi * np.cumsum(f) / sr) * np.exp(-t / 0.13) * 0.9
+    cr = rng.standard_normal(n)
+    cr = cr - np.convolve(cr, np.ones(6) / 6, 'same')
+    crack = cr * np.exp(-t / 0.011) * 0.6
+    rat = sosfilt(butter(2, [160, 800], btype='bandpass', fs=sr, output='sos'), rng.standard_normal(n))
+    rat = rat * np.exp(-t / 0.11) * (1 + np.sin(2 * np.pi * 36 * t)) * 0.28
+    y = thump + crack + rat
+    y[:int(0.0015 * sr)] *= np.linspace(0, 1, int(0.0015 * sr))
+    return (y / max(1e-6, np.abs(y).max()) * 0.85).astype(np.float32)
+
+
+def sfx09_door_click(sr=SR):
+    """Gentle door shutting: soft thud then a latch click-clack. 0.5 s, quiet."""
+    from scipy.signal import butter, sosfilt
+    n = int(0.5 * sr)
+    t = np.arange(n) / sr
+    rng = np.random.default_rng(92)
+    f = 70 + 60 * np.exp(-t / 0.03)
+    y = np.sin(2 * np.pi * np.cumsum(f) / sr) * np.exp(-t / 0.07) * 0.5
+    for t0, g, fc in ((0.045, 0.5, 2600), (0.105, 0.32, 1700)):
+        i0 = int(t0 * sr)
+        m = int(0.03 * sr)
+        c = sosfilt(butter(2, [fc * 0.6, fc * 1.5], btype='bandpass', fs=sr, output='sos'), rng.standard_normal(m)) * np.exp(-np.arange(m) / (0.005 * sr))
+        y[i0:i0 + m] += c * g * 3.2
+    y[:int(0.001 * sr)] *= np.linspace(0, 1, int(0.001 * sr))
+    return (y / max(1e-6, np.abs(y).max()) * 0.5).astype(np.float32)
+
+
+def sfx09_door_open(sr=SR):
+    """Latch click, a short hinge creak (gliding saw through a band-pass) and an air whoosh as the door swings. 0.9 s."""
+    from scipy.signal import butter, sosfilt
+    n = int(0.9 * sr)
+    t = np.arange(n) / sr
+    rng = np.random.default_rng(93)
+    y = np.zeros(n)
+    m = int(0.03 * sr)
+    y[:m] += sosfilt(butter(2, [1500, 4200], btype='bandpass', fs=sr, output='sos'), rng.standard_normal(m)) * np.exp(-np.arange(m) / (0.005 * sr)) * 2.2
+    f = 260 + 260 * np.clip((t - 0.08) / 0.55, 0, 1) ** 0.8 + 6 * np.sin(2 * np.pi * 23 * t)
+    ph = 2 * np.pi * np.cumsum(f) / sr
+    saw = sum(np.sin(h * ph) / h for h in range(1, 9))
+    saw = sosfilt(butter(2, [350, 2200], btype='bandpass', fs=sr, output='sos'), saw)
+    env = np.clip((t - 0.08) / 0.1, 0, 1) * np.clip((0.78 - t) / 0.25, 0, 1)
+    y += saw * env * 0.22
+    air = sosfilt(butter(2, [250, 1800], btype='bandpass', fs=sr, output='sos'), rng.standard_normal(n))
+    y += air * np.sin(np.pi * np.clip((t - 0.05) / 0.8, 0, 1)) ** 2 * 0.1
+    return (y / max(1e-6, np.abs(y).max()) * 0.55).astype(np.float32)
+
+
+def sfx09_explosion(sr=SR):
+    """Blast: sub boom (pitch-falling sine) + low-passed noise body + sharp crack + scattered debris ticks. 2.4 s."""
+    from scipy.signal import butter, sosfilt
+    n = int(2.4 * sr)
+    t = np.arange(n) / sr
+    rng = np.random.default_rng(94)
+    f = 26 + 70 * np.exp(-t / 0.32)
+    boom = np.sin(2 * np.pi * np.cumsum(f) / sr) * np.exp(-t / 0.6) * 0.95
+    body = sosfilt(butter(3, 900, btype='lowpass', fs=sr, output='sos'), rng.standard_normal(n)) * np.exp(-t / 0.42) * 1.1
+    crack = rng.standard_normal(n)
+    crack = crack - np.convolve(crack, np.ones(5) / 5, 'same')
+    crack = crack * np.exp(-t / 0.022) * 0.9
+    deb = np.zeros(n)
+    for _ in range(70):
+        i0 = int(rng.uniform(0.12, 1.9) * sr)
+        m = int(0.02 * sr)
+        c = rng.standard_normal(m) * np.exp(-np.arange(m) / (0.004 * sr))
+        deb[i0:i0 + m] += c[:max(0, min(m, n - i0))] * rng.uniform(0.1, 0.45) * np.exp(-(i0 / sr) / 1.1)
+    deb = sosfilt(butter(2, [700, 5000], btype='bandpass', fs=sr, output='sos'), deb)
+    y = boom + body + crack + deb * 0.5
+    y[:int(0.001 * sr)] *= np.linspace(0, 1, int(0.001 * sr))
+    return (y / max(1e-6, np.abs(y).max()) * 0.92).astype(np.float32)
+
+
+def sfx09_wind(dur, sr=SR):
+    """Open-lot wind bed: band-passed noise with slow gusts plus a thin drifting whistle. Unit RMS."""
+    from scipy.signal import butter, sosfilt
+    n = int(dur * sr)
+    t = np.arange(n) / sr
+    rng = np.random.default_rng(95)
+    x = rng.standard_normal(n)
+    y = sosfilt(butter(2, [180, 1100], btype='bandpass', fs=sr, output='sos'), x)
+    g = cv2.GaussianBlur(rng.standard_normal(n).astype(np.float32).reshape(1, -1), (0, 0), sigmaX=sr * 0.55).ravel()
+    g = g / (np.abs(g).max() + 1e-9)
+    y *= 0.55 + 0.45 * (0.5 + 0.5 * g * 3).clip(0, 1)
+    wf = 620 + 140 * np.sin(2 * np.pi * 0.23 * t) + 60 * np.sin(2 * np.pi * 0.61 * t)
+    whistle = np.sin(2 * np.pi * np.cumsum(wf) / sr) * (0.5 + 0.5 * np.sin(2 * np.pi * 0.17 * t + 1.0)) ** 2 * 0.1 * np.abs(np.sin(2 * np.pi * 0.1 * t))
+    y = y + sosfilt(butter(2, [450, 900], btype='bandpass', fs=sr, output='sos'), whistle * np.std(y) * 6)
+    return (y / (np.sqrt(np.mean(y ** 2)) + 1e-9)).astype(np.float32)
+
+
+EP09_SFX = {'hit': sfx09_hit, 'door_click': sfx09_door_click, 'door_open': sfx09_door_open, 'explosion': sfx09_explosion}
+EP09_SFX_GAIN = {'hit': 0.9, 'door_click': 0.55, 'door_open': 0.5, 'explosion': 0.8}
+EP09_WIND_DB = -26.0      # wind RMS relative to full scale (speech RMS is about -20 dBFS before loudnorm)
+
+
+def build_audio_ep09(tl, total, path):
+    n = int((total + 0.5) * SR)
+    mix = np.zeros(n, np.float32)
+    for e in tl:                                                    # speech (clean, or door-muffled for the midwife)
+        if e['audio'] is not None:
+            s = int(e['start'] * SR)
+            mix[s:s + len(e['audio'])] += e['audio']
+    for e in tl:                                                    # one-shots at beat start + sfx_at
+        nm = e['beat'].get('sfx')
+        if nm in EP09_SFX:
+            x = EP09_SFX[nm]() * EP09_SFX_GAIN[nm]
+            s0 = int((e['start'] + float(e['beat'].get('sfx_at', 0.0))) * SR)
+            mix[s0:s0 + len(x)] += x[:max(0, min(len(x), n - s0))]
+    w0 = next((e['start'] + float(e['beat']['wind_at']) for e in tl if 'wind_at' in e['beat']), None)
+    if w0 is not None:                                              # wind from the lot onward, to the end of the body (fades in and out)
+        i0, i1 = int(w0 * SR), int(total * SR)
+        wd = sfx09_wind((i1 - i0) / SR)
+        k = len(wd)
+        env = np.ones(k, np.float32)
+        fi, fo = int(0.9 * SR), int(0.45 * SR)
+        env[:fi] = np.linspace(0, 1, fi) ** 1.5
+        env[-fo:] *= np.linspace(1, 0, fo)
+        mix[i0:i0 + k] += wd * env * 10 ** (EP09_WIND_DB / 20)
+    mix = mix[:int(total * SR)]
+    pk = np.abs(mix).max()
+    if pk > 0.95:
+        mix *= 0.95 / pk
+    st = np.int16(np.clip(mix, -1, 1) * 32767)
+    wavfile.write(path, SR, np.c_[st, st])
+    return [], []
+
+
 def build_audio(tl, total, path):
+    if EPNAME == EP09:
+        return build_audio_ep09(tl, total, path)
     n = int((total + 0.5) * SR)
     mix = np.zeros(n, np.float32)
     # speech

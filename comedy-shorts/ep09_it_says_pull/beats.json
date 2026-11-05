@@ -1,0 +1,333 @@
+{
+ "voices": {
+  "R": {
+   "minimax": "English_DecentYoungMan",
+   "speed": 1.05
+  },
+  "N": {
+   "minimax": "English_ReservedYoungMan",
+   "speed": 1.05
+  },
+  "M": {
+   "minimax": "English_Comedian",
+   "speed": 1.3
+  },
+  "MW": {
+   "minimax": "English_compelling_lady1",
+   "speed": 1.2
+  },
+  "NU": {
+   "minimax": "English_compelling_lady1",
+   "speed": 1.05
+  },
+  "D": {
+   "minimax": "English_radiant_girl",
+   "speed": 1.05
+  }
+ },
+ "shots": {
+  "hall_russell": {},
+  "hall_neil": {},
+  "hall_both": {},
+  "hall_open_nurse": {},
+  "hall_door_close": {},
+  "card_18": {},
+  "old_russell": {},
+  "old_daughter": {},
+  "lot_wide": {},
+  "lot_marcus": {},
+  "lot_neil": {},
+  "lot_russell": {},
+  "end_tag": {}
+ },
+ "beats": [
+  {
+   "shot": "hall_russell",
+   "hold": 1.2,
+   "anim": "hit",
+   "sfx": "hit",
+   "sfx_at": 0.2,
+   "note": "0.0 Russell 全速衝入，0.2 撞門 + hit 音效，畫面震 0.15 秒、門微震，向後彈 0.3 秒再埋返去貼住門；牌由第 0 格已經睇到"
+  },
+  {
+   "shot": "hall_neil",
+   "say": "N",
+   "text": "It says pull.",
+   "emotion": "neutral",
+   "speed": 1.05,
+   "look": {
+    "N": "right"
+   },
+   "after": 0.1,
+   "note": "neil_point 隻手指住個牌"
+  },
+  {
+   "shot": "hall_russell",
+   "say": "R",
+   "text": "I know what it says.",
+   "emotion": "neutral",
+   "speed": 1.05,
+   "look": {
+    "R": "center"
+   },
+   "after": 0.1
+  },
+  {
+   "shot": "hall_russell",
+   "say": "MW",
+   "text": "PUSH! PUSH!",
+   "emotion": "angry",
+   "speed": 1.2,
+   "after": 0.1,
+   "lowpass": 1500,
+   "lowpass_gain": 1.2,
+   "note": "助產士畫外，低通濾波似由門後傳出；字幕正常"
+  },
+  {
+   "shot": "hall_russell",
+   "say": "R",
+   "text": "See?",
+   "emotion": "neutral",
+   "speed": 1.05,
+   "look": {
+    "R": "center"
+   },
+   "after": 0.1,
+   "tilt": {
+    "R": 2.5
+   },
+   "note": "Russell 轉向鏡頭得戚（現有嘴）"
+  },
+  {
+   "shot": "hall_neil",
+   "say": "N",
+   "text": "That's for your wife.",
+   "emotion": "neutral",
+   "speed": 1.05,
+   "look": {
+    "N": "right"
+   },
+   "after": 0.1
+  },
+  {
+   "shot": "hall_both",
+   "say": "M",
+   "text": "COME ON, RUSSELL! PUSH!",
+   "emotion": "happy",
+   "speed": 1.3,
+   "look": {
+    "M": "center"
+   },
+   "after": 0.1,
+   "anim": "rush_m",
+   "note": "Marcus 衝入，喺 Russell 後面一齊推"
+  },
+  {
+   "shot": "hall_open_nurse",
+   "say": "NU",
+   "text": "It's a girl. Come on in.",
+   "emotion": "happy",
+   "speed": 1.05,
+   "look": {
+    "NU": "center"
+   },
+   "after": 0.1,
+   "anim": "open",
+   "sfx": "door_open",
+   "sfx_at": 0.0,
+   "note": "硬切 bg_hall_open；護士企門口光入面手撐住開咗嘅門；Russell/Marcus 仍推空氣"
+  },
+  {
+   "shot": "hall_open_nurse",
+   "hold": 0.5,
+   "look": {
+    "R": "right"
+   },
+   "note": "靜位 1.5 秒 1/3：眼珠望開咗嘅門（右）"
+  },
+  {
+   "shot": "hall_open_nurse",
+   "hold": 0.5,
+   "look": {
+    "R": "left"
+   },
+   "note": "2/3：望 Neil（左）"
+  },
+  {
+   "shot": "hall_open_nurse",
+   "hold": 0.5,
+   "look": {
+    "R": "left"
+   },
+   "note": "3/3：望 Marcus（左，後面）"
+  },
+  {
+   "shot": "hall_open_nurse",
+   "say": "R",
+   "text": "No, thank you.",
+   "emotion": "neutral",
+   "speed": 1.05,
+   "look": {
+    "R": "center"
+   },
+   "after": 0.1
+  },
+  {
+   "shot": "hall_door_close",
+   "hold": 0.9,
+   "anim": "door_close",
+   "sfx": "door_click",
+   "sfx_at": 0.0,
+   "note": "硬切返 bg_hall，門閂埋，Russell 貼住門推，輕輕閂門聲"
+  },
+  {
+   "shot": "hall_both",
+   "say": "M",
+   "text": "YES!",
+   "emotion": "happy",
+   "speed": 1.3,
+   "look": {
+    "M": "center"
+   },
+   "after": 0.1,
+   "note": "感嘆號拖長，TTS 用逗號，字幕照舊",
+   "tts_text": "YES,"
+  },
+  {
+   "shot": "hall_neil",
+   "hold": 1.0,
+   "look": {
+    "N": "eyes_closed"
+   },
+   "note": "Neil 閉眼靜位（neil_point 頭位閉眼）"
+  },
+  {
+   "shot": "card_18",
+   "hold": 1.0,
+   "note": "紙質字卡 18 YEARS LATER，靜"
+  },
+  {
+   "shot": "old_russell",
+   "hold": 1.2,
+   "look": {
+    "R": "right"
+   },
+   "note": "老 Russell，手掌對準門上兩個磨舊手印，靜 1.2 秒"
+  },
+  {
+   "shot": "old_daughter",
+   "hold": 1.6,
+   "anim": "walk",
+   "walk_t0": 0.0,
+   "look": {
+    "R": "right",
+    "D": "right"
+   },
+   "sfx": "door_open",
+   "sfx_at": 0.0,
+   "note": "daughter 鏡像，由門邊出現向左行過畫面，頭望返 Russell，開門聲"
+  },
+  {
+   "shot": "old_daughter",
+   "say": "D",
+   "text": "Bye, Dad.",
+   "emotion": "neutral",
+   "speed": 1.05,
+   "look": {
+    "R": "right",
+    "D": "right"
+   },
+   "after": 0.1,
+   "anim": "walk",
+   "walk_t0": 1.6,
+   "note": "冇停低，繼續行出畫面"
+  },
+  {
+   "shot": "old_russell",
+   "say": "R",
+   "text": "Bye, sweetie. Almost got it.",
+   "emotion": "neutral",
+   "speed": 0.95,
+   "look": {
+    "R": "right"
+   },
+   "after": 0.1,
+   "note": "老 Russell，冇望佢答"
+  },
+  {
+   "shot": "old_russell",
+   "shot_at": [
+    [
+     0.4,
+     "lot_wide"
+    ]
+   ],
+   "hold": 1.6,
+   "anim": "blast",
+   "sfx": "explosion",
+   "sfx_at": 0.0,
+   "wind_at": 0.4,
+   "look": {
+    "R": "right"
+   },
+   "note": "爆破 0.4 秒（白光、紙碎粉塵），硬切 bg_lot 全景，Russell 老貼住門靜 1.2 秒；風聲 0.4 秒開始一直到尾"
+  },
+  {
+   "shot": "lot_marcus",
+   "say": "M",
+   "text": "...push.",
+   "emotion": "sad",
+   "speed": 0.75,
+   "look": {
+    "M": "center"
+   },
+   "after": 0.8,
+   "note": "Marcus 老喺 Russell 後面，鏡頭埋近，好細聲"
+  },
+  {
+   "shot": "lot_neil",
+   "say": "N",
+   "text": "Russell. There's no hospital.",
+   "emotion": "neutral",
+   "speed": 0.9,
+   "look": {
+    "N": "right"
+   },
+   "after": 0.8,
+   "note": "Neil 老喺左邊，望 Russell"
+  },
+  {
+   "shot": "lot_russell",
+   "say": "R",
+   "text": "Feels looser.",
+   "emotion": "neutral",
+   "speed": 0.95,
+   "look": {
+    "R": "right"
+   },
+   "after": 0.0,
+   "note": "近鏡，冇望鏡頭"
+  },
+  {
+   "shot": "lot_wide",
+   "hold": 1.8,
+   "look": {
+    "R": "right"
+   },
+   "note": "最後畫面：空地、一道門、一個人推緊，靜 1.8 秒，風聲"
+  },
+  {
+   "shot": "end_tag",
+   "hold": 1.5,
+   "note": "placeholder，渲染時剔走，brand/end_tag.mp4 截 1.5 秒只接一次"
+  }
+ ],
+ "rest_mouth": {
+  "R": "smirk",
+  "N": "flat",
+  "M": "grin",
+  "MW": "flat",
+  "NU": "smile",
+  "D": "flat"
+ }
+}
