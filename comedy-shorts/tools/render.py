@@ -21,13 +21,16 @@ EP = '/Volumes/core/AI-Workspace/Claude/mac/comedy-shorts/ep01_game_night'
 BEATS = f'{EP}/beats.json'
 ROOT = '/Volumes/core/AI-Workspace/Claude/mac-work/comedy'
 ASSETS = f'{ROOT}/assets'
-AUDIO = f'{ROOT}/audio'
+AUDIO = f'{ROOT}/audio_v3'
 BUILD = f'{ROOT}/build'
-OUT_MP4 = f'{BUILD}/game_night_v1.mp4'
+OUT_MP4 = f'{BUILD}/game_night_v3.mp4'
 SR = 44100
 
 # Manual eye overrides (source-pixel coords): name -> [(cx, cy, rx, ry), (cx, cy, rx, ry)]
 EYE_OVERRIDES = {}
+# Hip line (source y inside the keyed, cropped puppet): waist of trousers / top of skirt / where the dress flares.
+# This is the line that must rest on the seat cushion's top surface.
+HIP = {'dave_down': 850, 'dave_up': 850, 'karen_card': 832, 'karen_nocard': 832, 'linda': 1004, 'tom': 862}
 
 FONT_BOLD = ('/System/Library/Fonts/Avenir Next.ttc', 0)      # Avenir Next Bold
 FONT_HEAVY = ('/System/Library/Fonts/Avenir Next.ttc', 8)     # Avenir Next Heavy
@@ -213,6 +216,8 @@ class Puppet:
             d.ellipse([cx - rx, cy - ry, cx + rx, cy + ry], outline=(255, 0, 0), width=3)
             r = 0.32 * (rx + ry) / 2
             d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(0, 0, 0))
+        if self.name in HIP:
+            d.line([0, HIP[self.name], self.w, HIP[self.name]], fill=(0, 255, 255), width=4)
         d.line([self.ex - self.headw / 2, self.ey, self.ex + self.headw / 2, self.ey], fill=(0, 0, 255), width=3)
         d.ellipse([self.ex - 6, self.ey - 6, self.ex + 6, self.ey + 6], fill=(0, 0, 255))
         my = self.ey + 1.1 * self.eyew
@@ -340,8 +345,11 @@ def make_pupil(r, seed=7):
 # scene layout
 # --------------------------------------------------------------------------------------
 PAD = 110
-TABLE_BASE = 0.82   # spec says 0.88; at 0.88 the table sits entirely below the feet/caption (see report)
 SHOTS = None  # loaded from beats.json
+
+
+def Y_frame_x(X, pup, scale, sx):
+    return X + (sx - pup.ex) * scale
 
 
 class Sprite:
@@ -369,7 +377,7 @@ class Sprite:
         sa[PAD:PAD + sh, PAD:PAD + sw] = al
         M = np.float32([[1, 0, shadow_off[0]], [0, 1, shadow_off[1]]])
         sa = cv2.warpAffine(sa, M, (cw, ch))
-        sa = cv2.GaussianBlur(sa, (0, 0), 7) * 0.45
+        sa = cv2.GaussianBlur(sa, (0, 0), 5) * 0.45
         layer = np.zeros((ch, cw, 4), np.uint8)
         layer[..., 3] = np.clip(sa * 255, 0, 255).astype(np.uint8)
         over_layer(layer, canvas, 0, 0)
@@ -379,7 +387,16 @@ class Sprite:
         self.eyes = [(PAD + cx * scale, PAD + cy * scale, rx * scale, ry * scale) for (cx, cy, rx, ry) in pup.eyes]
         self.spacing = pup.spacing * scale
         self.eyew = pup.eyew * scale
-        self.pivot = (PAD + sw / 2, PAD + sh)   # feet, canvas coords
+        if pup.name in HIP:
+            hy = HIP[pup.name]
+            self.pivot = (PAD + pup.ex * scale, PAD + hy * scale)      # speaking motion rotates about the hips
+            row = pup.alpha[max(0, hy - 30)] > 0.5
+            xs_ = np.where(row)[0]
+            self.hip_l = Y_frame_x(X, pup, scale, xs_.min())
+            self.hip_r = Y_frame_x(X, pup, scale, xs_.max())
+            self.hip_y = Y + (hy - pup.ey) * scale
+        else:
+            self.pivot = (PAD + sw / 2, PAD + sh)
         # frame-space origin of canvas
         self.ox = int(round(X - self.ex))
         self.oy = int(round(Y - self.ey))
@@ -439,26 +456,45 @@ class Scene:
         key = (name, crop)
         if key in self.bgs:
             return self.bgs[key]
-        im = Image.open(f'{ASSETS}/{name}.png').convert('RGB')
-        iw, ih = im.size
-        if crop is None:
-            blur = 0
-            c = im
-        else:
-            fx0, fx1, fy0, fy1 = crop
-            c = im.crop((int(fx0 * iw), int(fy0 * ih), int(fx1 * iw), int(fy1 * ih)))
-            blur = 8
-        c = c.resize((W + 8, H + 8), Image.LANCZOS)
+        c = Image.open(f'{ASSETS}/{name}.png').convert('RGB').resize((W + 8, H + 8), Image.LANCZOS)
         a = np.asarray(c)
-        if blur:
-            a = cv2.GaussianBlur(a, (0, 0), blur)
         self.bgs[key] = a
         return a
+
+    def seat_plate(self, name, S, Yh, Xc, shadows):
+        """Close furniture plate scaled about its seat line so that the seat top surface sits at frame y = Yh.
+        S = seat top surface fraction of image height. shadows = [(x0, x1, ry)] contact shadows at the hips."""
+        im = Image.open(f'{ASSETS}/{name}.png').convert('RGB')
+        iw, ih = im.size
+        k = max((Yh + 6) / (S * ih), (W + 10) / iw, (H + 10) / ih)
+        pw, ph = int(round(iw * k)), int(round(ih * k))
+        py = int(round(Yh - S * ih * k))
+        px = int(round(Xc - iw / 2 * k))
+        px = min(-5, max(px, W + 5 - pw))
+        a = np.asarray(im.resize((pw, ph), Image.LANCZOS))
+        arr = a[-4 - py:H + 4 - py, -4 - px:W + 4 - px]
+        assert arr.shape[:2] == (H + 8, W + 8), (arr.shape, py, px, k)
+        arr = cv2.GaussianBlur(arr, (0, 0), 2.5).astype(np.float32)
+        yy, xx = np.mgrid[0:H + 8, 0:W + 8].astype(np.float32)
+        m = np.zeros((H + 8, W + 8), np.float32)
+        for (x0, x1, ry) in shadows:
+            cx, cy = (x0 + x1) / 2 + 4, Yh + ry * 0.35 + 4
+            rx = (x1 - x0) / 2 * 0.95
+            m = np.maximum(m, np.clip(1 - (((xx - cx) / rx) ** 2 + ((yy - cy) / ry) ** 2), 0, 1))
+        m = cv2.GaussianBlur(m, (0, 0), 9)
+        arr = arr * (1 - 0.55 * m[..., None] * np.array([0.9, 1.0, 1.0], np.float32))
+        return np.clip(arr, 0, 255).astype(np.uint8), k
 
     def get_puppet(self, name):
         if name not in self.puppets:
             self.puppets[name] = Puppet(name, eyes=(name != 'table'))
         return self.puppets[name]
+
+
+SEAT = {'sofa': ('bg_sofa_close', 0.597), 'chair': ('bg_chair_close', 0.612)}
+# wide shot (bg_wide in 1080x1920 coordinates, read from the plate): seat-top line, head x, puppet scale
+WIDE = {'D': ('sofa', 1132, 215, 0.34), 'K': ('sofa', 1132, 395, 0.33), 'L': ('chair', 1128, 715, 0.29), 'T': ('chair', 1128, 900, 0.35)}
+TABLE_SURFACE_Y = 1280   # frame y of the table-top centre in the wide shot (visible above the caption)
 
 
 def layout_shot(scene, shot):
@@ -468,44 +504,59 @@ def layout_shot(scene, shot):
     sp = scene.spec['shots'][shot]
     out = {'bg': None, 'sprites': [], 'table': None, 'notes': []}
     cast = sp['cast']
-    SOFA = (0.0, 0.62, 0.25, 0.87)
-    CHAIR = (0.38, 1.0, 0.25, 0.87)
     if shot == 'wide':
-        out['bg'] = scene.bg('bg_wide', None)
-        xs = {'D': 0.16, 'K': 0.36, 'L': 0.62, 'T': 0.82}
+        shadows = []
         for role in ('D', 'K', 'L', 'T'):
             if role not in cast:
                 continue
             pup = scene.get_puppet(cast[role])
-            scale = 0.35 * H / pup.h
-            feet = 0.72 * H
-            Y = feet - pup.h * scale + pup.ey * scale
-            out['sprites'].append((role, Sprite(role, pup, scale, xs[role] * W, Y, 'wide', (6, 8))))
-        t = scene.get_puppet('table')  # keyed table, same keyer
+            _, Yh, X, scale = WIDE[role]
+            Y = Yh - (HIP[pup.name] - pup.ey) * scale
+            spr = Sprite(role, pup, scale, X, Y, 'wide', (4, 5))
+            out['sprites'].append((role, spr))
+            shadows.append((spr.hip_l + 8, spr.hip_r - 8, 7))
+        arr = scene.bg('bg_wide', None).astype(np.float32)
+        yy, xx = np.mgrid[0:H + 8, 0:W + 8].astype(np.float32)
+        m = np.zeros((H + 8, W + 8), np.float32)
+        for (x0, x1, ry) in shadows:
+            cx, cy = (x0 + x1) / 2 + 4, 1130 + 4 + 3
+            m = np.maximum(m, np.clip(1 - (((xx - cx) / ((x1 - x0) / 2)) ** 2 + ((yy - cy) / ry) ** 2), 0, 1))
+        m = cv2.GaussianBlur(m, (0, 0), 4)
+        arr = arr * (1 - 0.5 * m[..., None])
+        out['bg'] = np.clip(arr, 0, 255).astype(np.uint8)
+        t = scene.get_puppet('table')
         sc = 0.50 * W / t.w
-        out['table'] = Sprite('table', t, sc, 0.5 * W, TABLE_BASE * H - t.h * sc + t.ey * sc, 'table', (6, 9)) if hasattr(t, 'ey') else None
-        return scene.sprites.setdefault(shot, out)
+        out['table'] = Sprite('table', t, sc, 0.5 * W, TABLE_SURFACE_Y - 0.43 * t.h * sc, 'table', (5, 7))
+        scene.sprites[shot] = out
+        return out
     single = len(cast) == 1
     side_chair = any(c in ('L', 'T') for c in cast)
-    crop = CHAIR if side_chair else SOFA
-    out['bg'] = scene.bg('bg_chair' if side_chair else 'bg_sofa', crop)
+    plate, S = SEAT['chair' if side_chair else 'sofa']
     if single:
         role = list(cast)[0]
         pup = scene.get_puppet(cast[role])
-        spec = (0.48 * W, 800, 680)
-        out['sprites'].append((role, fit_sprite(role, pup, *spec, shadow=(10, 14), notes=out['notes'])))
+        spr = fit_sprite(role, pup, 0.48 * W, 680, out['notes'], eye_y=800)
+        out['sprites'].append((role, spr))
+        Xc = spr.X
+        shadows = [(spr.hip_l, spr.hip_r, 22)]
+        Yh = spr.hip_y
     else:
+        DUO_YH = 1260
         for role, X in zip(list(cast), (0.28 * W, 0.70 * W)):
             pup = scene.get_puppet(cast[role])
-            out['sprites'].append((role, fit_sprite(role, pup, X, 760, 400, shadow=(10, 14), notes=out['notes'], max_shift=80)))
+            out['sprites'].append((role, fit_sprite(role, pup, X, 420, out['notes'], hip_y=DUO_YH, max_shift=80)))
+        shadows = [(r_[1].hip_l, r_[1].hip_r, 14) for r_ in out['sprites']]
+        Xc, Yh = 0.5 * W, DUO_YH
+    out['bg'], k = scene.seat_plate(plate, S, Yh, Xc, shadows)
+    out['notes'].append(f'plate {plate} scale {k:.3f}, seat line y={Yh:.0f}')
     scene.sprites[shot] = out
     return out
 
 
-def fit_sprite(role, pup, X, Y, headw, shadow, notes, max_shift=None):
+def fit_sprite(role, pup, X, headw, notes, eye_y=None, hip_y=None, max_shift=None):
     scale = headw / pup.headw
     # keep raised arm / body edges in frame: left extent from head centre
-    left_ext = (pup.ex - 0) * scale
+    left_ext = pup.ex * scale
     margin = 16
     right_lim = W - 130 - headw / 2 - 10
     if X - left_ext < margin:
@@ -516,7 +567,12 @@ def fit_sprite(role, pup, X, Y, headw, shadow, notes, max_shift=None):
         else:
             notes.append(f'{role}/{pup.name}: shifted X {X:.0f}->{X2:.0f} to keep arm in frame')
         X = X2
-    return Sprite(role, pup, scale, X, Y, 'single', shadow)
+    off = (HIP[pup.name] - pup.ey) * scale          # eye line -> hip line, frame px
+    Y = eye_y if eye_y is not None else hip_y - off
+    spr = Sprite(role, pup, scale, X, Y, 'single', (6, 8))
+    spr.X = X
+    notes.append(f'{role}/{pup.name}: head {pup.headw * scale:.0f}px, eye y {Y:.0f}, hip y {Y + off:.0f}')
+    return spr
 
 
 # --------------------------------------------------------------------------------------
@@ -536,13 +592,7 @@ def build_timeline(spec, manifest, quiet=False):
         else:
             if m is None:
                 raise RuntimeError(f'beat {i} speaks but has no audio')
-            tempo = float(b.get('tempo', 1.0))
             src = f"{AUDIO}/{m['file']}"
-            if abs(tempo - 1) > 1e-6:
-                dst = f"{BUILD}/audio_t/{m['file'][:-4]}_t{tempo}.wav"
-                if not os.path.exists(dst):
-                    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', src, '-filter:a', f'atempo={tempo}', '-ar', str(SR), '-ac', '1', dst], check=True)
-                src = dst
             if src not in wavs:
                 sr, d = wavfile.read(src)
                 assert sr == SR, (src, sr)
@@ -823,7 +873,7 @@ class Renderer:
             ja = r.uniform(-amp_a, amp_a)
             dy, ang = 0.0, 0.0
             if role == say:
-                dy = -0.02 * H * min(1.0, lev)
+                dy = -0.01 * H * min(1.0, lev)
                 sgn = 1 if math.sin(aidx * 2.3 + 0.7) > 0 else -1
                 ang = 1.5 * min(1.0, lev) * sgn
             if role in tilt_to:
