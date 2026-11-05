@@ -17,7 +17,8 @@
     "marcus_door": {
       "cast": {
         "M": "marcus_door"
-      }
+      },
+      "no_mouth": true
     },
     "marcus_bag": {
       "cast": {
@@ -63,7 +64,9 @@
         "M": "center"
       },
       "speed": 1.3,
-      "after": 0.1
+      "after": 0.1,
+      "burst": true,
+      "sfx": "door_burst"
     },
     {
       "shot": "russell",
@@ -179,7 +182,7 @@
     {
       "shot": "marcus_bag",
       "say": "M",
-      "text": "Chicken. Double Chicken.",
+      "text": "Burger. Double Burger.",
       "emotion": "happy",
       "look": {
         "M": "center"
@@ -212,7 +215,8 @@
       "look": {
         "R": "eyes_down"
       },
-      "note": "眼珠望落去汽水，嘴角開始笑"
+      "note": "眼珠望落去汽水，嘴角開始笑",
+      "mouth_rest": "smile"
     },
     {
       "shot": "neil",
@@ -281,7 +285,7 @@
     {
       "shot": "neil",
       "say": "N",
-      "text": "You stood in a line. You read a board. You said \"number four.\" A teenager asked if you wanted fries. And you paid him eleven dollars.",
+      "text": "You stood in a line.",
       "emotion": "neutral",
       "look": {
         "N": "center"
@@ -289,7 +293,29 @@
       "speed": 1.1,
       "after": 0.0,
       "push": true,
-      "note": "全片最長一句，鏡頭慢慢推近"
+      "note": "全片最長一句，鏡頭慢慢推近",
+      "text_steps": [
+        [
+          0.0,
+          "You stood in a line."
+        ],
+        [
+          1.299,
+          "You read a board."
+        ],
+        [
+          2.428,
+          "You said \"number four.\""
+        ],
+        [
+          3.819,
+          "A teenager asked if you wanted fries."
+        ],
+        [
+          5.948,
+          "And you paid him eleven dollars."
+        ]
+      ]
     },
     {
       "shot": "marcus_bag",
@@ -310,7 +336,7 @@
     {
       "shot": "sticker_close",
       "hold": 0.9,
-      "note": "卡通雞舉手，寫住 I ATE IT ALL"
+      "note": "卡通漢堡舉手，寫住 I ATE IT ALL"
     },
     {
       "shot": "marcus_sticker",
@@ -321,7 +347,8 @@
         "M": "center"
       },
       "speed": 1.3,
-      "after": 0.1
+      "after": 0.1,
+      "slide_out": 0.3
     },
     {
       "shot": "neil",

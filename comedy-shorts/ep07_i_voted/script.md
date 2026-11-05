@@ -27,7 +27,7 @@ Key & Peele《Pawn Shop》（3,500 萬觀看，207 秒，https://youtu.be/WqBZVl
 
 ## 觀眾自己諗到嘅位
 
-**Marcus 根本冇去投票，佢排咗兩個鐘嘅係炸雞店。** 全片冇人講過「炸雞店」三個字。開頭佢已經揸住油紙袋同大杯汽水，畫面一直擺喺度，觀眾由「Number four」開始自己諗到。
+**Marcus 根本冇去投票，佢排咗兩個鐘嘅係漢堡店。** 全片冇人講過「漢堡店」三個字。開頭佢已經揸住油紙袋同大杯汽水，畫面一直擺喺度，觀眾由「Number four」開始自己諗到。
 
 ## 開頭
 
@@ -48,7 +48,7 @@ Key & Peele《Pawn Shop》（3,500 萬觀看，207 秒，https://youtu.be/WqBZVl
 | 8.8 | Neil 單人 | NEIL | What board? | |
 | 9.4 | Marcus 單人 | MARCUS | The big one! It lights up! | |
 | 10.8 | Russell 單人 | RUSSELL | Who was on it? | |
-| 11.6 | Marcus 單人 | MARCUS | Chicken. Double Chicken. | 好認真分析 |
+| 11.6 | Marcus 單人 | MARCUS | Burger. Double Burger. | 好認真分析 |
 | 12.9 | Marcus 單人 | MARCUS | And the fish guy, but he runs every year. Never wins. | 搖頭，好惋惜 |
 | 15.6 | Neil 單人 | | （靜 1 秒） | 只有眼珠郁：望落去油紙袋 |
 | 16.6 | Russell 單人 | | （靜 0.5 秒） | 眼珠望落去汽水，嘴角開始笑 |
@@ -61,7 +61,7 @@ Key & Peele《Pawn Shop》（3,500 萬觀看，207 秒，https://youtu.be/WqBZVl
 | 25.8 | Neil 單人 | NEIL | You stood in a line. You read a board. You said "number four." A teenager asked if you wanted fries. And you paid him eleven dollars. | 平靜，全片最長一句，鏡頭慢慢推近 |
 | 33.0 | Marcus 單人 | | （靜 0.5 秒） | 完全唔明有咩問題 |
 | 33.5 | Marcus 單人 | MARCUS | Then how come I got a sticker? | 好得戚，慢慢撕出嚟 |
-| 35.0 | 貼紙特寫 | | | 卡通雞舉手，寫住 I ATE IT ALL |
+| 35.0 | 貼紙特寫 | | | 卡通漢堡舉手，寫住 I ATE IT ALL |
 | 35.9 | Marcus 單人 | MARCUS | Happy Election Day! | 飲啖汽水，走人 |
 | 37.2 | Neil 單人 | NEIL | That was Tuesday. | 冇望佢 |
 | 38.2 | 片尾 | | | 三主角 end tag，1.5 秒 |

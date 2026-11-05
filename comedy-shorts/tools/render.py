@@ -32,7 +32,14 @@ EPCFG = {
     # end_tag: appended once after the body (concat, ep06 only), first end_tag_secs seconds of brand/end_tag.mp4.
     'ep06_grandfather_auto': dict(assets=[f'{ROOT}/assets_ep06', f'{ROOT}/assets_leads', f'{ROOT}/assets'], audio=f'{ROOT}/audio_ep06', out=f'{BUILD}/grandfather_v1_phone.mp4',
                                   end_tag=f'{SHORTS}/brand/end_tag.mp4', end_tag_secs=1.5),
+    # ep07 (I Voted): same room / puppets as ep06. The end_tag beat in beats.json is a placeholder: it is dropped from the body
+    # (skip_shots) and the real end card is concatenated once (end_tag), so the card is never doubled.
+    'ep07_i_voted': dict(assets=[f'{ROOT}/assets_ep07', f'{ROOT}/assets_ep06', f'{ROOT}/assets_ep03', f'{ROOT}/assets_leads', f'{ROOT}/assets'],
+                         audio=f'{ROOT}/audio_ep07', out=f'{BUILD}/ivoted_v1_phone.mp4',
+                         end_tag=f'{SHORTS}/brand/end_tag.mp4', end_tag_secs=1.5, skip_shots=('end_tag',), limit=0.80),
 }
+# puppet-name aliases per episode (beats.json says 'russell', the ep06 seated Russell art is russell_s1)
+PUPPET_ALIAS = {'ep07_i_voted': {'russell': 'russell_s1'}}
 # set by configure()
 EPNAME = 'ep01_game_night'
 BEATS = AUDIO = OUT_MP4 = None
@@ -69,12 +76,14 @@ EYE_OVERRIDES_EP = {
     'ep06_grandfather_auto': {'marcus_jump': [(438, 468, 72, 72), (575, 430, 72, 72)],
                               'marcus_box': [(468, 680, 62, 62), (587, 655, 58, 58)],
                               'neil_box': [(407, 367, 53, 28), (550, 356, 50, 24)]},
+    'ep07_i_voted': {'marcus_door': [(436, 459, 62, 62), (557, 430, 59, 59)]},
 }
 # HIP_EP: absolute source y (inside the cropped puppet). HIP_FRAC_EP: fraction of the cropped puppet height (used until
 # a puppet is measured; run `render.py --ep ep06_grandfather_auto --eyes` and read the cyan hip line, then pin it in HIP_EP).
 # ep06 Russell hip (cropped coords) = top edge of the plaid blanket (lap) for all four stages, so the seat line and the
 # position of the figure are identical in s1..s4 (v2: s1/s2 used to sit 64 px lower).
-HIP_EP = {'ep06_grandfather_auto': {'russell_s1': 860, 'russell_s2': 860, 'russell_s3': 860, 'russell_s4': 860}}
+HIP_EP = {'ep06_grandfather_auto': {'russell_s1': 860, 'russell_s2': 860, 'russell_s3': 860, 'russell_s4': 860},
+          'ep07_i_voted': {'russell_s1': 860}}
 HIP_FRAC_EP = {
     # russell_s1..s4 (seated, cropped at the shins): hip = where the shirt hem meets the thighs, ~70% down. Others: same default until measured.
     'ep06_grandfather_auto': {n: 0.70 for n in ('russell_s1', 'russell_s2', 'russell_s3', 'russell_s4', 'marcus_box', 'neil_box',
@@ -446,7 +455,7 @@ def Y_frame_x(X, pup, scale, sx):
 class Sprite:
     """A placed puppet: premult RGBA canvas (puppet + shadow), frame-space origin, eye anchors, pivot."""
 
-    def __init__(self, role, pup, scale, X, Y, kind, shadow_off, pivot='hip'):
+    def __init__(self, role, pup, scale, X, Y, kind, shadow_off, pivot='hip', top_extra=0):
         self.role, self.pup, self.scale = role, pup, scale
         self.hip_y = None
         sw, sh = int(round(pup.w * scale)), int(round(pup.h * scale))
@@ -524,6 +533,13 @@ class Sprite:
         self.ey -= self.cy0
         self.eyes = [(cx - self.cx0, cy - self.cy0, rx, ry) for (cx, cy, rx, ry) in self.eyes]
         self.pivot = (self.pivot[0] - self.cx0, self.pivot[1] - self.cy0)
+        if top_extra:                                   # ep07 door jump: extra transparent rows above the canvas so the warped
+            E = int(top_extra)                          # figure is not cut by a hard canvas edge while it flies in
+            self.canvas = np.pad(self.canvas, ((E, 0), (0, 0), (0, 0)))
+            self.oy -= E
+            self.ey += E
+            self.eyes = [(cx, cy + E, rx, ry) for (cx, cy, rx, ry) in self.eyes]
+            self.pivot = (self.pivot[0], self.pivot[1] + E)
         self.mouth_cache = {}
 
     def mouth(self, shape):
@@ -547,6 +563,32 @@ class Sprite:
             self._oval = (spr, spr.shape[1] / 2, spr.shape[0] / 2)
         return self._oval
 
+
+def _lid_sprite(rx, ry, skin, seed):
+    """Closed eye: a skin-coloured lid covering the eye white, with a dark downward arc (like a sleeping eye)."""
+    w_, h_ = 2 * rx * 1.04, 2 * ry * 1.04
+    col = tuple(int(c) for c in skin) + (255,)
+    ink = (62, 30, 26, 255)
+    def fn(d, sc, cx, cy):
+        d.ellipse([(cx - w_ / 2) * sc, (cy - h_ / 2) * sc, (cx + w_ / 2) * sc, (cy + h_ / 2) * sc], fill=col)
+        lw = max(3.0, 0.11 * ry)
+        for u in np.linspace(-0.62, 0.62, 40):
+            x = cx + u * rx
+            y = cy + 0.02 * ry + 0.36 * ry * (1 - (u / 0.62) ** 2) * 0.9
+            rr = lw * (0.5 + 0.5 * (1 - abs(u / 0.62) ** 2))
+            d.ellipse([(x - rr / 2) * sc, (y - rr / 2) * sc, (x + rr / 2) * sc, (y + rr / 2) * sc], fill=ink)
+    spr, pad = shape_sprite(fn, w_ + 6, h_ + 6, seed, shadow=(1, 1), pad=5)
+    return spr, spr.shape[1] / 2, spr.shape[0] / 2
+
+
+def _sprite_lid(self, rx, ry):
+    k = ('lid', int(rx), int(ry))
+    if k not in self.mouth_cache:
+        self.mouth_cache[k] = _lid_sprite(rx, ry, self.pup.skin, shash(self.pup.name, 'lid'))
+    return self.mouth_cache[k]
+
+
+Sprite.lid = _sprite_lid
 
 PUPIL_CACHE = {}
 
@@ -665,6 +707,7 @@ class Scene:
         return self.bgs[key]
 
     def get_puppet(self, name):
+        name = PUPPET_ALIAS.get(EPNAME, {}).get(name, name)
         if name not in self.puppets:
             self.puppets[name] = Puppet(name, eyes=(not name.startswith('table')))
         return self.puppets[name]
@@ -735,7 +778,7 @@ def layout_ep01(scene, shot):
 def layout_shot(scene, shot):
     if shot in scene.sprites:
         return scene.sprites[shot]
-    return {'ep02_on_hold': layout_ep02, 'ep03_apology': layout_ep03, 'ep06_grandfather_auto': layout_ep06}.get(EPNAME, layout_ep01)(scene, shot)
+    return {'ep02_on_hold': layout_ep02, 'ep03_apology': layout_ep03, 'ep06_grandfather_auto': layout_ep06, 'ep07_i_voted': layout_ep07}.get(EPNAME, layout_ep01)(scene, shot)
 
 
 def blob_shadows(arr, items, blur=6):
@@ -919,6 +962,45 @@ def layout_ep06(scene, shot):
     return out
 
 
+# ep07 (I Voted): same room as ep06. Russell and the full-screen plates reuse layout_ep06. Marcus and Neil stand on the rug:
+# one scale per character (Marcus head ~ 443 px like ep06, Neil height ~ ep06's), feet on the rug, figure kept inside the frame.
+EP07_SCALE = {'M': 0.96, 'N': 0.90}
+EP07_FEET = {'M': 1670, 'N': 1730}
+EP07_DOOR = dict(scale=0.93, X=594, top=470)     # marcus_door: mid-air jump, small contact shadow far below
+
+
+def layout_ep07(scene, shot):
+    sp = scene.spec['shots'][shot]
+    if sp.get('fullscreen') or list(sp['cast'])[0] == 'R':
+        return layout_ep06(scene, shot)
+    out = {'bg': None, 'sprites': [], 'table': None, 'notes': [], 'items': None}
+    role = list(sp['cast'])[0]
+    pup = scene.get_puppet(sp['cast'][role])
+    if shot == 'marcus_door':
+        d = EP07_DOOR
+        s, X = d['scale'], d['X']
+        Y = d['top'] + pup.ey * s
+        spr = Sprite(role, pup, s, X, Y, 'single', (6, 8), pivot='feet', top_extra=340)
+        shadow = (spr.foot_cx, 1664, 0.20 * spr.fig_w, 16, 0.32)
+    else:
+        s, feet = EP07_SCALE[role], EP07_FEET[role]
+        X = 660.0
+        X = min(X, W - 10 - (pup.w - pup.ex) * s)
+        X = max(X, 10 + pup.ex * s)
+        Y = feet - (pup.h - pup.ey) * s
+        spr = Sprite(role, pup, s, X, Y, 'single', (6, 8), pivot='feet')
+        shadow = (spr.foot_cx, feet - 6, 0.34 * spr.fig_w, 22, 0.55)
+    out['sprites'].append((role, spr))
+    p = EP06_STAND_PLATE
+    bg0 = scene.plate_at('bg_living', p['k'], p['px'], p['py'])
+    out['bg0'], out['shadow'] = bg0, shadow            # shadow is moved by hand while a puppet slides off
+    out['bg'] = blob_shadows(bg0, [shadow], blur=6)
+    out['notes'].append(f'{role}/{pup.name}: scale {s:.3f}, head {pup.headw * s:.0f}px, eye y {Y:.0f}, feet y {spr.feet_y:.0f}, '
+                        f'bbox x {X - pup.ex * s:.0f}..{X + (pup.w - pup.ex) * s:.0f}')
+    scene.sprites[shot] = out
+    return out
+
+
 def fit_sprite(role, pup, X, headw, notes, eye_y=None, hip_y=None, max_shift=None, arm_fit=True, pivot='hip'):
     scale = headw / pup.headw
     # keep raised arm / body edges in frame: left extent from head centre
@@ -989,6 +1071,7 @@ def build_timeline(spec, manifest, quiet=False):
             entry['audio'] = d
             entry['adur'] = adur
             entry['env'] = envelope(env_src)
+        dur += float(b.get('slide_out', 0.0))     # ep07: the puppet slides off in this extra time after the line
         entry['dur'] = dur
         tl.append(entry)
         t += dur
@@ -1238,10 +1321,67 @@ def bw(fr, dim=0.94):
 
 
 # --------------------------------------------------------------------------------------
+# ep07 confetti: deterministic paper pieces, closed-form motion (burst + drag + flutter fall), drawn straight onto the frame
+# --------------------------------------------------------------------------------------
+CONFETTI_COLS = [(226, 57, 47), (247, 181, 41), (60, 168, 160), (238, 111, 150), (246, 236, 214), (70, 120, 200), (124, 184, 74)]
+_CONFETTI = None
+
+
+def confetti_params(n=380):
+    rng = np.random.default_rng(77)
+    P = []
+    for i in range(n):
+        src = i % 3
+        if src == 0:                                   # centre pop
+            x0, y0, ang, sp = W * 0.5 + rng.normal(0, 40), H * 0.40 + rng.normal(0, 60), rng.uniform(0, 2 * math.pi), rng.uniform(500, 3000)
+        elif src == 1:                                 # left cannon
+            x0, y0, ang, sp = -20.0, H * 0.93, -rng.uniform(0.55, 1.35), rng.uniform(1600, 3600)
+        else:                                          # right cannon
+            x0, y0, ang, sp = W + 20.0, H * 0.93, -math.pi + rng.uniform(0.55, 1.35), rng.uniform(1600, 3600)
+        kind = rng.choice(['rect', 'streamer', 'dot'], p=[0.58, 0.17, 0.25])
+        if kind == 'rect':
+            w_, h_ = rng.uniform(22, 48), rng.uniform(12, 26)
+        elif kind == 'streamer':
+            w_, h_ = rng.uniform(8, 13), rng.uniform(70, 130)
+        else:
+            w_, h_ = rng.uniform(14, 22), 0
+        P.append(dict(x0=x0, y0=y0, vx=math.cos(ang) * sp, vy=math.sin(ang) * sp, vt=rng.uniform(260, 460), kind=kind, w=w_, h=h_,
+                      col=CONFETTI_COLS[int(rng.integers(len(CONFETTI_COLS)))], th=rng.uniform(0, 2 * math.pi), om=rng.uniform(-9, 9),
+                      ph=rng.uniform(0, 2 * math.pi), ff=rng.uniform(2.5, 8.0), back=(i % 4 == 0)))
+    return P
+
+
+def draw_confetti(fr, t, back):
+    global _CONFETTI
+    if _CONFETTI is None:
+        _CONFETTI = confetti_params()
+    k = 2.4
+    a = (1 - math.exp(-k * t)) / k
+    for q in _CONFETTI:
+        if q['back'] != back:
+            continue
+        x = q['x0'] + q['vx'] * a
+        y = q['y0'] + q['vy'] * a + q['vt'] * (t - a)
+        if x < -140 or x > W + 140 or y < -140 or y > H + 140:
+            continue
+        c = math.cos(q['ph'] + 2 * math.pi * q['ff'] * t)
+        shade = 0.74 + 0.26 * abs(c)
+        col = tuple(int(v * shade) for v in q['col'])
+        if q['kind'] == 'dot':
+            cv2.circle(fr, (int(round(x)), int(round(y))), max(2, int(q['w'] / 2 * (0.6 + 0.4 * abs(c)))), col, -1, cv2.LINE_AA)
+            continue
+        hw, hh = q['w'] / 2 * (0.25 + 0.75 * abs(c)), q['h'] / 2
+        th = q['th'] + q['om'] * t
+        ct, st = math.cos(th), math.sin(th)
+        pts = np.array([[x + ct * px - st * py, y + st * px + ct * py] for px, py in ((-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh))])
+        cv2.fillConvexPoly(fr, np.round(pts * 16).astype(np.int32), col, cv2.LINE_AA, 4)
+
+
+# --------------------------------------------------------------------------------------
 # frame renderer
 # --------------------------------------------------------------------------------------
-LOOK_X = {'center': 0.0, 'left': -0.5, 'right': 0.5, 'down': 0.0}
-LOOK_Y = {'center': 0.0, 'left': 0.0, 'right': 0.0, 'down': 0.45}
+LOOK_X = {'center': 0.0, 'left': -0.5, 'right': 0.5, 'down': 0.0, 'eyes_down': 0.0, 'eyes_closed': 0.0}
+LOOK_Y = {'center': 0.0, 'left': 0.0, 'right': 0.0, 'down': 0.45, 'eyes_down': 0.6, 'eyes_closed': 0.0}
 
 
 class Renderer:
@@ -1272,7 +1412,7 @@ class Renderer:
         ov = -1
         if b.get('overlay') and lo >= b.get('overlay_from', 0.0) - 1e-9:
             ov = min(3, int((lo - b.get('overlay_from', 0.0)) * OUT_FPS + 1e-6))
-        push = int(lo * OUT_FPS + 1e-6) if b.get('push') else 0
+        push = int(lo * OUT_FPS + 1e-6) if (b.get('push') or b.get('burst') or b.get('slide_out')) else 0
         return shot, ov, push
 
     def beat_at(self, T):
@@ -1295,10 +1435,25 @@ class Renderer:
         return None
 
     # ---- captions
-    def caption(self, i):
-        if i in self.captions:
-            return self.captions[i]
-        text = self.tl[i]['beat'].get('text', '')
+    def cap_step(self, T):
+        """ep07 Neil summary: index of the sub-caption on screen (beats with text_steps only; 0 otherwise). Part of the frame cache key."""
+        bi = self.beat_at(T)
+        steps = self.tl[bi]['beat'].get('text_steps')
+        if not steps:
+            return 0
+        lo = max(0.0, T - self.tl[bi]['start'])
+        k = 0
+        for j, (t_, _) in enumerate(steps):
+            if lo >= float(t_) - 1e-9:
+                k = j
+        return k
+
+    def caption(self, i, text=None):
+        key = i if text is None else (i, text)
+        if key in self.captions:
+            return self.captions[key]
+        if text is None:
+            text = self.tl[i]['beat'].get('text', '')
         maxw = 860 - 80
         def _fit(max_lines):
             size = 62
@@ -1372,7 +1527,7 @@ class Renderer:
         base = np.zeros((ch, cw, 4), np.uint8)
         base[..., 3] = np.clip(sh_a * 255, 0, 255).astype(np.uint8)
         over_layer(base, lay, 0, 0)
-        self.captions[i] = base
+        self.captions[key] = base
         return base
 
     # ---- title
@@ -1468,7 +1623,20 @@ class Renderer:
             return self.grade(fr, aidx)
         lay = layout_shot(self.scene, shot)
         wx, wy = (int(v) for v in rng_bg.integers(-1, 2, size=2))
-        fr = lay['bg'][4 + wy:4 + wy + H, 4 + wx:4 + wx + W].copy()
+        slide_dx = 0.0
+        if b.get('slide_out') and 'bg0' in lay:
+            so = float(b['slide_out'])
+            q = min(1.0, max(0.0, (local_out - (e['dur'] - so)) / so))
+            slide_dx = 1250.0 * q ** 1.8
+        bgarr = lay['bg']
+        if slide_dx > 0:
+            cx_, cy_, rx_, ry_, st_ = lay['shadow']
+            bgarr = blob_shadows(lay['bg0'], [(cx_ + slide_dx, cy_, rx_, ry_, st_)], blur=6)
+        fr = bgarr[4 + wy:4 + wy + H, 4 + wx:4 + wx + W].copy()
+        burst_t = local_out + 0.35 if b.get('burst') else None
+        head_box = None                                     # ep07 door: Marcus head ellipse in frame coords (set in the sprite loop)
+        if burst_t is not None:
+            draw_confetti(fr, burst_t, back=True)
         p = smooth(local / e['dur']) if hold and e['dur'] > 0 else 0.0
         say = b.get('say') if spoken else None
         look = b.get('look', {})
@@ -1493,10 +1661,18 @@ class Renderer:
                 vy = vy + (LOOK_Y[lt] - vy) * p
             ps = 1.0 + (ps_to[role] - 1.0) * p if role in ps_to else 1.0
             for (cx, cy, rx, ry) in spr.eyes:
+                if lk == 'eyes_closed':                       # ep07: skin lid with a closed-eye arc over the eye
+                    lsp, lax, lay_ = spr.lid(rx, ry)
+                    over_layer(fr_layer, lsp, int(round(cx - lax)), int(round(cy - lay_)))
+                    continue
                 r = 0.32 * (rx + ry) / 2 * ps
                 psp, ax, ay = pupil_sprite(max(r, 2))
                 px = cx + vx * rx
                 py = cy + vy * ry
+                if lk == 'eyes_down':                         # keep the pupil inside the eye white
+                    py = cy + min(vy * ry, max(0.0, ry - r))
+                    if role == 'R':
+                        px = cx + min(0.25 * rx, max(0.0, rx - r))      # Russell (left) looks down-right, toward the soda
                 over_layer(fr_layer, psp, int(round(px - ax)), int(round(py - ay)))
             # ---- mouth
             rest = self.rest[role]
@@ -1524,14 +1700,15 @@ class Renderer:
                     shape = 'open_l'
             else:
                 shape = rest
-            ms, mx, my = spr.mouth(shape)
-            face = FACE.get(spr.pup.name, {})
-            mcx = spr.ex
-            mcy = spr.ey + face.get('mouth_dy', 1.1) * spr.eyew
-            if face.get('oval'):
-                os_, ox_, oy_ = spr.oval()
-                over_layer(fr_layer, os_, int(round(mcx - ox_)), int(round(mcy - oy_)))
-            over_layer(fr_layer, ms, int(round(mcx - mx)), int(round(mcy - my)))
+            if not self.spec['shots'].get(shot, {}).get('no_mouth'):    # ep07 marcus_door: the art already has an open mouth
+                ms, mx, my = spr.mouth(shape)
+                face = FACE.get(spr.pup.name, {})
+                mcx = spr.ex
+                mcy = spr.ey + face.get('mouth_dy', 1.1) * spr.eyew
+                if face.get('oval'):
+                    os_, ox_, oy_ = spr.oval()
+                    over_layer(fr_layer, os_, int(round(mcx - ox_)), int(round(mcy - oy_)))
+                over_layer(fr_layer, ms, int(round(mcx - mx)), int(round(mcy - my)))
             # ---- motion
             r = np.random.default_rng(shash(role, pair))
             amp_p, amp_a = (0.5, 0.05) if hold else (1.5, 0.2)
@@ -1550,10 +1727,24 @@ class Renderer:
                 ang += tilt_to[role] * p
             if role in tilt:
                 ang += tilt[role]
+            ddx = 0.0
+            if b.get('burst'):                                   # ep07 door: jumps in from the upper right, settles, then floats
+                pe = min(1.0, local_out / 0.32)
+                ee = 1 - (1 - pe) ** 3
+                ddx = 380.0 * (1 - ee)
+                dy += -300.0 * (1 - ee) - 16.0 * math.sin(2 * math.pi * 1.1 * local_out) * ee
+                ang += 16.0 * (1 - ee)
+            if slide_dx > 0:
+                ddx += slide_dx
+                ang += 3.0 * min(1.0, slide_dx / 300.0)
             M = cv2.getRotationMatrix2D(spr.pivot, ang + ja, 1.0)
-            M[:, 2] += (jx, jy + dy)
+            M[:, 2] += (jx + ddx, jy + dy)
             warped = cv2.warpAffine(fr_layer, M, (fr_layer.shape[1], fr_layer.shape[0]), flags=cv2.INTER_LINEAR,
                                     borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))
+            if b.get('burst') and role == say:              # head centre (just below the eye line) and radii, moved with the jump
+                hx_ = M[0, 0] * spr.ex + M[0, 1] * (spr.ey - 12) + M[0, 2]
+                hy_ = M[1, 0] * spr.ex + M[1, 1] * (spr.ey - 12) + M[1, 2]
+                head_box = (hx_ + spr.ox, hy_ + spr.oy, 0.72 * spr.headw_px, 0.66 * spr.headw_px)
             over(fr, warped, spr.ox, spr.oy)
         if lay['table'] is not None:
             tsp = lay['table']
@@ -1575,6 +1766,17 @@ class Renderer:
             x0, y0, x1, y1 = self.scene.blank_panel(self.spec['shots'][shot]['bg'])
             tl_ = self.title_art(title, x1 - x0, y1 - y0)
             over(fr, tl_, int((x0 + x1) / 2 - tl_.shape[1] / 2), int((y0 + y1) / 2 - tl_.shape[0] / 2))
+        if burst_t is not None:
+            pre_front = fr.copy() if (local_out < 1.3 and head_box is not None) else None
+            draw_confetti(fr, burst_t, back=False)
+            if pre_front is not None:                       # ep07 opener: no paper over Marcus's head (big eyes and mouth) for 0-1.3 s
+                cx_, cy_, rx_, ry_ = head_box
+                x0_, x1_ = max(0, int(cx_ - rx_ - 30)), min(W, int(cx_ + rx_ + 30))
+                y0_, y1_ = max(0, int(cy_ - ry_ - 30)), min(H, int(cy_ + ry_ + 30))
+                yy_, xx_ = np.mgrid[y0_:y1_, x0_:x1_].astype(np.float32)
+                dd_ = np.sqrt(((xx_ - cx_) / rx_) ** 2 + ((yy_ - cy_) / ry_) ** 2)
+                m_ = np.clip((1.0 - dd_) / 0.08, 0, 1)[..., None]      # soft edge, no hard cut on the paper
+                fr[y0_:y1_, x0_:x1_] = (fr[y0_:y1_, x0_:x1_] * (1 - m_) + pre_front[y0_:y1_, x0_:x1_] * m_).astype(np.uint8)
         if b.get('push') and lay['sprites']:
             spr0 = lay['sprites'][0][1]
             z = 1.0 + 0.38 * smooth(local_out / max(e['dur'], 1e-6))
@@ -1582,7 +1784,15 @@ class Renderer:
             fr = cv2.warpAffine(fr, Mz, (W, H), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT)
         owner = self.caption_owner(bi)
         if owner is not None:
-            cap = self.caption(owner)
+            steps = b.get('text_steps') if owner == bi else None
+            if steps:                                       # ep07 Neil summary: one card per sentence, switched on the audio
+                k_ = 0
+                for j_, (t_, _) in enumerate(steps):
+                    if local_out >= float(t_) - 1e-9:
+                        k_ = j_
+                cap = self.caption(owner, steps[k_][1])
+            else:
+                cap = self.caption(owner)
             r = np.random.default_rng(321 + pair)
             ox, oy = (int(v) for v in r.integers(-1, 2, size=2))
             over(fr, cap, int(W / 2 - cap.shape[1] / 2) + ox, int(1420 - cap.shape[0] / 2) + oy)
@@ -1742,7 +1952,74 @@ def sfx_bleep(sr=SR, dur=0.35):
     return y.astype(np.float32)
 
 
-SYNTH_SFX = {'hit': sfx_hit, 'mission_pass': sfx_mission_pass, 'bleep': sfx_bleep}
+def sfx_door_burst(sr=SR):
+    """ep07 opener, original synthesis: a door slam (pitch-dropping thump + wood crack + one small bounce), a party-popper pop with a
+    streamer hiss, and a crowd cheer (22 detuned saw voices through vowel formants + a scatter of claps). 1.5 s."""
+    from scipy.signal import butter, sosfilt
+    n = int(1.5 * sr)
+    t = np.arange(n) / sr
+    rng = np.random.default_rng(21)
+    f = 38 + 125 * np.exp(-t / 0.045)
+    slam = np.sin(2 * np.pi * np.cumsum(f) / sr) * np.exp(-t / 0.16) * 0.9
+    cr = rng.standard_normal(n)
+    cr = cr - np.convolve(cr, np.ones(8) / 8, 'same')
+    slam += cr * np.exp(-t / 0.014) * 0.7
+    slam += (np.sin(2 * np.pi * 180 * t) * np.exp(-t / 0.05) + 0.5 * np.sin(2 * np.pi * 310 * t) * np.exp(-t / 0.03)) * 0.45
+    k2 = int(0.12 * sr)
+    bounce = np.zeros(n)
+    tt = t[:n - k2]
+    bounce[k2:] = (np.sin(2 * np.pi * 70 * tt) * np.exp(-tt / 0.08) * 0.35 + cr[:n - k2] * np.exp(-tt / 0.01) * 0.3)
+    slam += bounce
+    y = slam * 0.62
+    pop = rng.standard_normal(n)
+    pop = sosfilt(butter(2, [1500, 5500], btype='bandpass', fs=sr, output='sos'), pop)
+    k3 = int(0.05 * sr)
+    pe = np.zeros(n)
+    pe[k3:] = np.exp(-t[:n - k3] / 0.03)
+    y += pop * pe * 0.5
+    hiss = sosfilt(butter(2, 3500, btype='highpass', fs=sr, output='sos'), rng.standard_normal(n))
+    he = np.zeros(n)
+    he[k3:] = np.minimum(1, t[:n - k3] / 0.03) * np.exp(-t[:n - k3] / 0.22)
+    y += hiss * he * 0.07
+    crowd = np.zeros(n)
+    for _ in range(22):
+        f0 = rng.uniform(150, 420)
+        d0 = rng.uniform(0.08, 0.30)
+        vib = 1 + 0.02 * np.sin(2 * np.pi * rng.uniform(4.5, 6.5) * t + rng.uniform(0, 6))
+        ph = 2 * np.pi * np.cumsum(f0 * vib) / sr
+        v = sum(np.sin(h * ph) / h for h in range(1, 14))
+        env = np.clip((t - d0) / 0.10, 0, 1) * np.clip((1.45 - t) / 0.35, 0, 1) * (1 + 0.15 * np.sin(2 * np.pi * rng.uniform(3, 7) * t))
+        crowd += v * env
+    crowd = (sosfilt(butter(2, [450, 1000], btype='bandpass', fs=sr, output='sos'), crowd)
+             + 0.6 * sosfilt(butter(2, [1000, 2600], btype='bandpass', fs=sr, output='sos'), crowd))
+    crowd /= max(1e-6, np.abs(crowd).max())
+    y += crowd * 0.2
+    clap = np.zeros(n)
+    for _ in range(36):
+        i0 = int(rng.uniform(0.25, 1.3) * sr)
+        m = int(0.02 * sr)
+        c_ = rng.standard_normal(m) * np.exp(-np.arange(m) / (0.004 * sr))
+        clap[i0:i0 + m] += c_[:max(0, min(m, n - i0))] * rng.uniform(0.3, 1.0)
+    clap = sosfilt(butter(2, [1200, 4500], btype='bandpass', fs=sr, output='sos'), clap)
+    y += clap * 0.12
+    y[:int(0.0015 * sr)] *= np.linspace(0, 1, int(0.0015 * sr))
+    return (y / max(1e-6, np.abs(y).max()) * 0.6).astype(np.float32)
+
+
+def sfx_whoosh(sr=SR, dur=0.3):
+    """Short paper-slide whoosh: band-passed noise whose centre rises, fast fade."""
+    from scipy.signal import butter, sosfilt
+    n = int(dur * sr)
+    t = np.arange(n) / sr
+    x = np.random.default_rng(31).standard_normal(n)
+    out = np.zeros(n)
+    for lo, hi, g in ((300, 900, 1.0), (900, 2600, 0.8), (2600, 6000, 0.5)):
+        out += sosfilt(butter(2, [lo, hi], btype='bandpass', fs=sr, output='sos'), x) * g
+    env = np.sin(np.pi * np.clip(t / dur, 0, 1)) ** 1.5
+    return (out * env / max(1e-6, np.abs(out * env).max()) * 0.25).astype(np.float32)
+
+
+SYNTH_SFX = {'hit': sfx_hit, 'mission_pass': sfx_mission_pass, 'bleep': sfx_bleep, 'door_burst': sfx_door_burst}
 
 
 def hold_music_loop(sr=SR):
@@ -1860,6 +2137,13 @@ def build_audio(tl, total, path):
             x = SYNTH_SFX[nm]()
             s0 = int((e['start'] + float(e['beat'].get('sfx_at', 0.0))) * SR)
             mix[s0:s0 + len(x)] += x[:max(0, min(len(x), n - s0))]
+    # ep07: paper whoosh under the slide-off
+    for e in tl:
+        so = float(e['beat'].get('slide_out', 0.0))
+        if so > 0 and e['audio'] is not None:
+            x = sfx_whoosh(dur=so)
+            s0 = int((e['start'] + e['dur'] - so) * SR)
+            mix[s0:s0 + len(x)] += x[:max(0, min(len(x), n - s0))]
     # hold music (ep02): from music_start to music_stop_click, telephone band-passed
     m_start = next((e['start'] for e in tl if e['beat'].get('sfx') == 'music_start'), None)
     m_stop = next((e['start'] for e in tl if e['beat'].get('sfx') == 'music_stop_click'), None)
@@ -1913,13 +2197,17 @@ def snap_state(R, T):
     return ta, aidx, bi
 
 
-def append_end_tag(body, tag, out, secs):
+LIMIT_LIN = 0.86    # linear sample-peak ceiling before the AAC encode (checked with ebur128 true peak after)
+
+
+def append_end_tag(body, tag, out, secs, limit=None):
     """Concatenate the end card once after the body (ep06). Both inputs are normalised to 1080x1920, 30 fps, 44.1 kHz stereo."""
     fc = (f'[1:v]trim=duration={secs},setpts=PTS-STARTPTS,fps={OUT_FPS},scale={W}:{H},setsar=1,format=yuv420p[v1];'
           f'[1:a]atrim=duration={secs},asetpts=PTS-STARTPTS,aresample=44100,aformat=channel_layouts=stereo[a1];'
           '[0:v]setpts=PTS-STARTPTS,format=yuv420p[v0];'
           '[0:a]asetpts=PTS-STARTPTS,aresample=44100,aformat=channel_layouts=stereo[a0];'
-          '[v0][a0][v1][a1]concat=n=2:v=1:a=1[v][a]')
+          '[v0][a0][v1][a1]concat=n=2:v=1:a=1[v][ac];'
+          f'[ac]alimiter=limit={limit or LIMIT_LIN}:attack=3:release=40:level=disabled[a]')   # final limiter (ep06 v3, ep07): true peak <= -1 dBTP
     cmd = ['ffmpeg', '-y', '-loglevel', 'error', '-i', body, '-i', tag, '-filter_complex', fc, '-map', '[v]', '-map', '[a]',
            '-c:v', 'libx264', '-crf', '22', '-preset', 'medium', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k',
            '-ar', '44100', '-movflags', '+faststart', out]
@@ -1942,6 +2230,12 @@ def main():
     STILLS = f'{BUILD}/stills' if a.ep == 'ep01_game_night' else f'{BUILD}/stills_{a.ep}'
     spec = json.load(open(BEATS))
     manifest = json.load(open(f'{AUDIO}/manifest.json'))
+    skip = EPCFG[a.ep].get('skip_shots', ())
+    if skip:                                           # drop placeholder beats (ep07 end_tag: the real card is concatenated once)
+        keep = [i for i, b_ in enumerate(spec['beats']) if b_['shot'] not in skip]
+        spec['beats'] = [spec['beats'][i] for i in keep]
+        manifest = [manifest[i] if i < len(manifest) else None for i in keep]
+        spec['shots'] = {k_: v_ for k_, v_ in spec['shots'].items() if k_ not in skip}
     tl, total = build_timeline(spec, manifest)
     print(f'{"idx":>3} {"start":>7} {"dur":>6} {"shot":<9} text')
     for e in tl:
@@ -2024,7 +2318,7 @@ def main():
     for n in range(nframes):
         T = n / OUT_FPS
         ta, aidx, bi = snap_state(R, T)
-        key = (bi, round(ta * 1000), aidx, R.variant(T))
+        key = (bi, round(ta * 1000), aidx, R.variant(T), R.cap_step(T))
         if key != last_key:
             last = R.frame(ta, aidx, t_out=T)
             last_key = key
@@ -2037,7 +2331,7 @@ def main():
     if end_tag:
         if rc != 0:
             raise SystemExit('body render failed; end tag not appended')
-        append_end_tag(body, end_tag, a.out, EPCFG[a.ep]['end_tag_secs'])
+        append_end_tag(body, end_tag, a.out, EPCFG[a.ep]['end_tag_secs'], EPCFG[a.ep].get('limit'))
         print('end tag appended once:', end_tag, f"{EPCFG[a.ep]['end_tag_secs']} s", '->', a.out)
     for note_shot in spec['shots']:
         if note_shot in R.scene.sprites:
