@@ -1,0 +1,333 @@
+{
+  "voices": {
+    "N": {
+      "minimax": "English_ReservedYoungMan",
+      "speed": 1.05
+    },
+    "R": {
+      "minimax": "English_DecentYoungMan",
+      "speed": 1.05
+    },
+    "M": {
+      "minimax": "English_Comedian",
+      "speed": 1.2
+    }
+  },
+  "shots": {
+    "wide": {
+      "bg": "bg_party_wide",
+      "cast": {
+        "M": "marcus",
+        "R": "russell",
+        "N": "neil"
+      },
+      "foreground": "table_cake"
+    },
+    "r": {
+      "bg": "bg_party_close",
+      "cast": {
+        "R": "russell"
+      }
+    },
+    "n": {
+      "bg": "bg_party_close",
+      "cast": {
+        "N": "neil"
+      }
+    },
+    "m": {
+      "bg": "bg_party_close",
+      "cast": {
+        "M": "marcus"
+      }
+    },
+    "m_jump": {
+      "bg": "bg_party_close",
+      "cast": {
+        "M": "marcus_jump"
+      }
+    },
+    "rn": {
+      "bg": "bg_party_close",
+      "cast": {
+        "R": "russell",
+        "N": "neil"
+      }
+    }
+  },
+  "rest_mouth": {
+    "R": "smirk",
+    "N": "flat",
+    "M": "grin"
+  },
+  "beats": [
+    {
+      "shot": "wide",
+      "say": "N",
+      "text": "You ate his cake while we were singing to him. Apologize.",
+      "emotion": "neutral",
+      "after": 0.05,
+      "look": {
+        "M": "right",
+        "R": "center",
+        "N": "left"
+      }
+    },
+    {
+      "shot": "r",
+      "say": "R",
+      "text": "Fine. Marcus, I'm sorry your frosting was load-bearing.",
+      "emotion": "neutral",
+      "after": 0.05,
+      "look": {
+        "R": "right"
+      }
+    },
+    {
+      "shot": "m_jump",
+      "say": "M",
+      "take": "accepted",
+      "text": "YOOOOO! APOLOGY ACCEPTED!",
+      "emotion": "happy",
+      "after": 0.0,
+      "look": {
+        "M": "center"
+      }
+    },
+    {
+      "shot": "n",
+      "say": "N",
+      "text": "That's not an apology!",
+      "emotion": "angry",
+      "after": 0.0,
+      "look": {
+        "N": "left"
+      }
+    },
+    {
+      "shot": "r",
+      "say": "R",
+      "text": "I'm sorry your friends only came to watch me eat.",
+      "emotion": "neutral",
+      "after": 0.05,
+      "look": {
+        "R": "right"
+      }
+    },
+    {
+      "shot": "m_jump",
+      "say": "M",
+      "text": "LET'S GOOOO! HE SAID SORRY!",
+      "emotion": "happy",
+      "after": 0.0,
+      "look": {
+        "M": "center"
+      }
+    },
+    {
+      "shot": "n",
+      "say": "N",
+      "text": "Marcus, he's insulting you.",
+      "emotion": "neutral",
+      "after": 0.0,
+      "look": {
+        "N": "right"
+      }
+    },
+    {
+      "shot": "m",
+      "say": "M",
+      "text": "Chat loves it!",
+      "emotion": "happy",
+      "after": 0.05,
+      "look": {
+        "M": "center"
+      }
+    },
+    {
+      "shot": "n",
+      "say": "N",
+      "text": "You're live?",
+      "emotion": "surprised",
+      "after": 0.0,
+      "look": {
+        "N": "right"
+      }
+    },
+    {
+      "shot": "m_jump",
+      "say": "M",
+      "text": "Forty thousand people, baby!",
+      "emotion": "happy",
+      "after": 0.0,
+      "look": {
+        "M": "center"
+      }
+    },
+    {
+      "shot": "r",
+      "say": "R",
+      "text": "Good. Forty thousand witnesses. That cake tasted like a sponge from a haunted car wash.",
+      "emotion": "neutral",
+      "after": 0.1,
+      "look": {
+        "R": "center"
+      }
+    },
+    {
+      "shot": "m",
+      "say": "M",
+      "text": "Yo! Your mom's in the chat!",
+      "emotion": "happy",
+      "after": 0.0,
+      "look": {
+        "M": "down"
+      }
+    },
+    {
+      "shot": "r",
+      "hold": 1.8,
+      "look": {
+        "R": "center"
+      },
+      "pupil_scale_to": {
+        "R": 0.55
+      }
+    },
+    {
+      "shot": "r",
+      "say": "R",
+      "text": "Hi, Mom.",
+      "emotion": "fearful",
+      "speed": 0.9,
+      "mouth_rest": "small_o",
+      "after": 0.0,
+      "look": {
+        "R": "center"
+      }
+    },
+    {
+      "shot": "m",
+      "say": "M",
+      "text": "She says she baked that cake!",
+      "emotion": "happy",
+      "after": 0.0,
+      "look": {
+        "M": "down"
+      }
+    },
+    {
+      "shot": "r",
+      "hold": 1.0,
+      "look": {
+        "R": "center"
+      },
+      "mouth_rest": "small_o"
+    },
+    {
+      "shot": "r",
+      "say": "R",
+      "text": "It was a very nice car wash.",
+      "emotion": "fearful",
+      "mouth_rest": "small_o",
+      "after": 0.0,
+      "look": {
+        "R": "center"
+      }
+    },
+    {
+      "shot": "m",
+      "say": "M",
+      "text": "She says she's coming over!",
+      "emotion": "happy",
+      "after": 0.0,
+      "look": {
+        "M": "down"
+      }
+    },
+    {
+      "shot": "r",
+      "say": "R",
+      "text": "Neil. Fake my death. Nothing messy. A sinkhole.",
+      "emotion": "fearful",
+      "speed": 1.15,
+      "mouth_rest": "small_o",
+      "after": 0.0,
+      "look": {
+        "R": "right"
+      }
+    },
+    {
+      "shot": "n",
+      "say": "N",
+      "text": "Apologize.",
+      "emotion": "happy",
+      "speed": 0.9,
+      "mouth_rest": "smile",
+      "after": 1.0,
+      "look": {
+        "N": "left"
+      },
+      "sfx": "door_knock"
+    },
+    {
+      "shot": "r",
+      "say": "R",
+      "text": "I'm sorry, Mom.",
+      "emotion": "sad",
+      "speed": 0.9,
+      "mouth_rest": "small_o",
+      "after": 0.0,
+      "look": {
+        "R": "center"
+      }
+    },
+    {
+      "shot": "m_jump",
+      "say": "M",
+      "take": "accepted",
+      "text": "YOOOOO! APOLOGY ACCEPTED!",
+      "emotion": "happy",
+      "after": 0.0,
+      "look": {
+        "M": "center"
+      }
+    },
+    {
+      "shot": "n",
+      "say": "N",
+      "text": "That's not your mom. That's Gary from Sausages. You owe him fifty bucks.",
+      "emotion": "neutral",
+      "after": 0.0,
+      "look": {
+        "N": "left"
+      }
+    },
+    {
+      "shot": "r",
+      "hold": 0.9,
+      "look": {
+        "R": "center"
+      },
+      "mouth_rest": "small_o"
+    },
+    {
+      "shot": "r",
+      "say": "R",
+      "text": "Sinkhole.",
+      "emotion": "neutral",
+      "speed": 0.9,
+      "mouth_rest": "small_o",
+      "after": 0.2,
+      "look": {
+        "R": "right"
+      }
+    },
+    {
+      "shot": "title",
+      "hold": 1.8,
+      "text": "APOLOGY ACCEPTED",
+      "sfx": "ding"
+    }
+  ]
+}

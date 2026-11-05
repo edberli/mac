@@ -26,6 +26,7 @@ SR = 44100
 EPCFG = {
     'ep01_game_night': dict(assets=[f'{ROOT}/assets'], audio=f'{ROOT}/audio_v4', out=f'{BUILD}/game_night_v4.mp4'),
     'ep02_on_hold': dict(assets=[f'{ROOT}/assets_ep02', f'{ROOT}/assets'], audio=f'{ROOT}/audio_ep02', out=f'{BUILD}/on_hold_v1.mp4'),
+    'ep03_apology': dict(assets=[f'{ROOT}/assets_ep03', f'{ROOT}/assets'], audio=f'{ROOT}/audio_ep03', out=f'{BUILD}/apology_v1.mp4'),
 }
 # set by configure()
 EPNAME = 'ep01_game_night'
@@ -52,7 +53,10 @@ def asset_path(name):
 configure('ep01_game_night')
 
 # Manual eye overrides (source-pixel coords): name -> [(cx, cy, rx, ry), (cx, cy, rx, ry)]
-EYE_OVERRIDES = {}
+# (full source-image coords, before the bbox crop)
+EYE_OVERRIDES = {'russell': [(450, 435.5, 70, 50), (614.5, 387.5, 69, 52)],
+                 'marcus': [(358, 368, 79, 79), (511, 325, 77, 77)],
+                 'marcus_jump': [(410, 428, 74, 74), (547, 387, 74, 74)]}
 # Hip line (source y inside the keyed, cropped puppet): waist of trousers / top of skirt / where the dress flares.
 # This is the line that must rest on the seat cushion's top surface.
 HIP = {'dave_down': 850, 'dave_up': 850, 'karen_card': 832, 'karen_nocard': 832, 'linda': 1004, 'tom': 862,
@@ -197,7 +201,7 @@ class Puppet:
 
     def detect_eyes(self):
         if self.name in EYE_OVERRIDES:
-            return EYE_OVERRIDES[self.name]
+            return tuple((cx - self.x0, cy - self.y0, rx, ry) for (cx, cy, rx, ry) in EYE_OVERRIDES[self.name])
         rgb, a = self.rgb, self.alpha
         mn = rgb.min(axis=2)
         sat = rgb.max(axis=2) - mn
@@ -324,6 +328,27 @@ def make_mouth(shape, s, seed):
         def fn(d, sc, cx, cy):
             poly(d, pts, DARK, sc, cx, cy, 0.5)
         return shape_sprite(fn, w + 8, depth + th + 8, seed)
+    if shape == 'smirk':
+        # small lopsided smile: left end lower, right end higher, tapered stroke
+        w = 0.50 * s
+        th = max(4.0, 0.05 * s)
+        depth, tilt = 0.10 * s, 0.11 * s
+        u = np.linspace(0, 1, 28)
+        cy_ = depth * (1 - (2 * u - 1) ** 2) * 0.8 + tilt * (1 - u) ** 1.2
+        tp = th * (0.25 + 0.75 * np.sin(np.pi * u) ** 0.5)
+        xs = (u - 0.5) * w
+        hh = depth + tilt + th
+        off = -hh / 2
+        pts = np.vstack([np.c_[xs, cy_ + off], np.c_[xs, cy_ + tp + off][::-1]])
+        def fn(d, sc, cx, cy):
+            poly(d, pts, DARK, sc, cx, cy, 0.4)
+        return shape_sprite(fn, w + 8, hh + 8, seed)
+    if shape == 'small_o':
+        rx, ry = 0.085 * s, 0.10 * s
+        pts = ellipse_pts(rx, ry, 32)
+        def fn(d, sc, cx, cy):
+            poly(d, pts, DARK, sc, cx, cy, 0.4)
+        return shape_sprite(fn, 2 * rx + 8, 2 * ry + 8, seed)
     if shape in ('grin', 'open_s', 'open_m', 'open_l', 'o'):
         if shape == 'grin':
             w, h = 0.72 * s, 0.40 * s
@@ -558,7 +583,7 @@ class Scene:
 
     def get_puppet(self, name):
         if name not in self.puppets:
-            self.puppets[name] = Puppet(name, eyes=(name != 'table'))
+            self.puppets[name] = Puppet(name, eyes=(not name.startswith('table')))
         return self.puppets[name]
 
 
@@ -627,7 +652,7 @@ def layout_ep01(scene, shot):
 def layout_shot(scene, shot):
     if shot in scene.sprites:
         return scene.sprites[shot]
-    return (layout_ep02 if EPNAME == 'ep02_on_hold' else layout_ep01)(scene, shot)
+    return {'ep02_on_hold': layout_ep02, 'ep03_apology': layout_ep03}.get(EPNAME, layout_ep01)(scene, shot)
 
 
 def blob_shadows(arr, items, blur=6):
@@ -696,6 +721,70 @@ def layout_ep02(scene, shot):
             out['notes'].append(f'{r}: head {sp_.pup.headw * sp_.scale:.0f}px, eye y {sp_.pup.ey * 0 + sp_.oy + sp_.ey:.0f}, feet y {sp_.feet_y:.0f}')
     else:
         raise KeyError(shot)
+    out['notes'].append(f'{shot}: laid out')
+    scene.sprites[shot] = out
+    return out
+
+
+def layout_ep03(scene, shot):
+    """ep03: three men STAND on the floor in front of the sofa (close plate) / on the rug (wide plate)."""
+    out = {'bg': None, 'sprites': [], 'table': None, 'notes': [], 'items': None}
+    cast = scene.spec['shots'][shot]['cast']
+    P = lambda r: scene.get_puppet(cast[r])
+    FLOOR = 1895           # close plate: floor line in front of the sofa (sofa legs end ~1610)
+
+    def place(role, pup, s, X, feet):
+        Y = feet - (pup.h - pup.ey) * s
+        spr = Sprite(role, pup, s, X, Y, 'single', (6, 8), pivot='feet')
+        out['sprites'].append((role, spr))
+        out['notes'].append(f'{role}/{pup.name}: head {pup.headw * s:.0f}px, scale {s:.3f}, eye y {Y:.0f}, feet y {spr.feet_y:.0f}, bbox x {X - pup.ex * s:.0f}..{X + (pup.w - pup.ex) * s:.0f}')
+        return spr
+
+    if shot == 'wide':
+        feet, s = 1405, 0.55
+        arr = scene.bg('bg_party_wide')
+        sh = []
+        for role, X in (("M", 215), ("R", 620), ("N", 850)):
+            spr = place(role, P(role), s, X, feet)
+            sh.append((spr.foot_cx, feet - 4, 0.34 * spr.fig_w, 13, 0.55))
+        out['bg'] = blob_shadows(arr, sh, blur=5)
+        t = scene.get_puppet('table_cake')
+        sc = 560 / t.w
+        out['table'] = Sprite('table', t, sc, 0.5 * W, 1440 - t.h * sc, 'table', (5, 7))
+        out['notes'].append(f'table {t.w * sc:.0f}x{t.h * sc:.0f} bottom y 1440 (legs under caption)')
+    else:
+        bg, k, py = scene.plate_fill('bg_party_close', 0.5 * W, blur=2.5)
+        sh = []
+        if shot in ('r', 'n'):
+            role = list(cast)[0]
+            pup = P(role)
+            headw = 480 if shot == 'n' else 650      # ep03: Neil's solo shot is smaller, full head in frame
+            out['sprites'].append((role, fit_sprite(role, pup, 0.5 * W, headw, out['notes'], eye_y=760, pivot='feet')))
+        elif shot in ('m', 'm_jump'):
+            pm, pj = scene.get_puppet('marcus'), scene.get_puppet('marcus_jump')
+            s = min((W - 30) / pm.w, (W - 30) / pj.w)        # whole figure incl. selfie stick must stay in frame
+            pup = pm if shot == 'm' else pj
+            X = W / 2 - (pup.w / 2 - pup.ex) * s
+            if shot == 'm':
+                spr = place('M', pup, s, X, FLOOR)
+                sh.append((spr.foot_cx, FLOOR - 10, 0.30 * spr.fig_w, 24, 0.55))
+            else:
+                ey_m = FLOOR - (pm.h - pm.ey) * s
+                c_m = ey_m + (pm.h / 2 - pm.ey) * s          # standing body-centre y
+                ey_j = c_m - 100 - (pj.h / 2 - pj.ey) * s     # body centre 100 px higher
+                spr = Sprite('M', pup, s, X, ey_j, 'single', (6, 8), pivot='feet')
+                out['sprites'].append(('M', spr))
+                out['notes'].append(f'M/marcus_jump: scale {s:.3f}, head {pj.headw * s:.0f}px, eye y {ey_j:.0f}, feet y {spr.feet_y:.0f}, stick top y {ey_j - pj.ey * s:.0f}, bbox x {X - pj.ex * s:.0f}..{X + (pj.w - pj.ex) * s:.0f}')
+                sh.append((X + 10, FLOOR - 55, 0.40 * spr.fig_w, 30, 0.70))
+        else:   # rn
+            pr, pn = P('R'), P('N')
+            s = 0.90
+            feet = 1800
+            for role, pup, X in (('R', pr, 370), ('N', pn, 790)):
+                spr = place(role, pup, s, X, feet)
+                rx = 0.38 * spr.fig_w if role == 'R' else 0.32 * spr.fig_w
+                sh.append((spr.foot_cx, feet - 8, rx, 20, 0.55))
+        out['bg'] = blob_shadows(bg, sh, blur=8) if sh else bg
     out['notes'].append(f'{shot}: laid out')
     scene.sprites[shot] = out
     return out
@@ -832,22 +921,27 @@ class Renderer:
             return self.captions[i]
         text = self.tl[i]['beat'].get('text', '')
         maxw = 860 - 80
-        size = 62
-        while True:
-            f = font(FONT_BOLD, size)
-            words = text.split()
-            lines, cur = [], ''
-            for w_ in words:
-                t = (cur + ' ' + w_).strip()
-                if f.getlength(t) <= maxw:
-                    cur = t
-                else:
-                    lines.append(cur)
-                    cur = w_
-            lines.append(cur)
-            if len(lines) <= 2 or size < 40:
-                break
-            size -= 2
+        def _fit(max_lines):
+            size = 62
+            while True:
+                f = font(FONT_BOLD, size)
+                words = text.split()
+                lines, cur = [], ''
+                for w_ in words:
+                    t = (cur + ' ' + w_).strip()
+                    if f.getlength(t) <= maxw:
+                        cur = t
+                    else:
+                        lines.append(cur)
+                        cur = w_
+                lines.append(cur)
+                if len(lines) <= max_lines or size < 40:
+                    return size, lines
+                size -= 2
+        size, lines = _fit(2)
+        if EPNAME == 'ep03_apology' and size < 48:
+            size, lines = _fit(3)     # ep03 only: allow 3 lines rather than shrink a 2-line caption below 48 px
+        f = font(FONT_BOLD, size)
         lh = int(size * 1.18)
         tw = max(f.getlength(l) for l in lines)
         sw = int(min(860, tw + 80))
@@ -1025,6 +1119,8 @@ class Renderer:
             # ---- mouth
             rest = self.rest[role]
             lev = 0.0
+            if hold and len(lay['sprites']) == 1:
+                rest = b.get('mouth_rest', rest)
             if role == say:
                 rest = b.get('mouth_rest', rest)
                 n = env_at(e['env'], local + 0.04)
@@ -1062,6 +1158,8 @@ class Renderer:
             dy, ang = 0.0, 0.0
             if role == say:
                 dy = -0.01 * H * min(1.0, lev)
+                if shot == 'm_jump':
+                    dy -= 62 * min(1.0, lev)      # hop: rises with loudness, lands in the quiet
                 sgn = 1 if math.sin(aidx * 2.3 + 0.7) > 0 else -1
                 ang = 1.5 * min(1.0, lev) * sgn
             if role in tilt_to:
@@ -1123,6 +1221,26 @@ def bell(sr=SR):
         x += a * np.sin(2 * np.pi * f * t) * np.exp(-t / dec * 3.2)
     x *= np.minimum(1, t / 0.002)
     return (x / np.abs(x).max()).astype(np.float32)
+
+
+def door_knock(sr=SR):
+    """Three firm low wooden knocks on a door."""
+    rng = np.random.default_rng(41)
+    out = np.zeros(int(1.0 * sr), np.float32)
+    for k, t0 in enumerate((0.0, 0.27, 0.54)):
+        n = int(0.22 * sr)
+        t = np.arange(n) / sr
+        body = (np.sin(2 * np.pi * 150 * t) * np.exp(-t / 0.045) + 0.6 * np.sin(2 * np.pi * 235 * t) * np.exp(-t / 0.03)
+                + 0.35 * np.sin(2 * np.pi * 410 * t) * np.exp(-t / 0.015))
+        nz = rng.standard_normal(n).astype(np.float32)
+        nz = cv2.GaussianBlur(nz.reshape(1, -1), (0, 0), sigmaX=6).ravel()
+        click = nz * np.exp(-t / 0.008) * 4.0
+        x = (body + click).astype(np.float32)
+        x[:40] *= np.linspace(0, 1, 40)
+        x *= 0.9 * (1.0 if k < 2 else 0.95)
+        i = int(t0 * sr)
+        out[i:i + n] += x
+    return out * 0.8
 
 
 def hold_music_loop(sr=SR):
@@ -1197,6 +1315,10 @@ def build_audio(tl, total, path):
                 first_tick = e['start']
             else:
                 second_tick = e['start']
+        elif s == 'door_knock':
+            k0 = int((e['start'] + e['adur']) * SR)
+            kn = door_knock()
+            mix[k0:k0 + len(kn)] += kn[:max(0, min(len(kn), n - k0))]
         elif s == 'ding_end_tick':
             ding_tick = e['start']
         elif s == 'tick_stop':
