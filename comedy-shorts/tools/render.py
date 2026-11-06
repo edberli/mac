@@ -1077,7 +1077,9 @@ EP09_ACT = {
     'N': dict(puppet='neil_point', role='N', S=0.5, tipx=590, feet=1110),
     # v2: the nurse stands in the doorway, a little further back than the pushers (smaller S, feet on the threshold ~ frame y 1360),
     # her door hand on the leaf edge (fingertip ~ frame x 928); her left side keeps >= 80 px from both pushers' arms.
-    'NU': dict(puppet='nurse', role='NU', S=0.36, tipx=900, feet=1087),
+    # v3: push pose (nurse_push.png = nurse.png with the raised arm swung down to horizontal, palm on the leaf's inner edge at x ~ 812,
+    # clear of the PULL board and knob); she pushes the leaf outward, never touches its PULL face.
+    'NU': dict(puppet='nurse_push', role='NU', S=0.32, tipx=812, feet=1087),
     'D': dict(puppet='daughter@flip', role='D', S=0.5, cx=590, feet=1330),
 }
 
@@ -1094,8 +1096,8 @@ EP09_ACT['R_lot'] = _ep09_lot(EP09_ACT['R_old'])
 EP09_ACT['M_lot'] = _ep09_lot(EP09_ACT['M_old'])
 EP09_ACT['N_lot'] = dict(puppet='neil_old', role='N', S=0.46, cx=300, feet=1170)
 # v2 hall_open_nurse: pushers keep their bodies, palms pulled back so the nurse fits in the doorway (palm-to-nurse gap 85 / 113 px)
-EP09_ACT['M_open'] = dict(EP09_ACT['M'], tipx=564)
-EP09_ACT['R_open'] = dict(EP09_ACT['R'], tipx=565)
+EP09_ACT['M_open'] = dict(EP09_ACT['M'], tipx=538)   # v3: a further 26 px back so the nurse's push arm and bun clear both palms
+EP09_ACT['R_open'] = dict(EP09_ACT['R'], tipx=539)
 # v2 lot_neil: old Neil moved to the left edge (-110 frame px), Marcus +240 and Russell +200 frame px to the right (gap 87 / 83 px, all faces visible)
 _k_lot_neil = EP09_CAMS['lot_neil']['k']
 EP09_ACT['N_lotB'] = dict(EP09_ACT['N_lot'], cx=EP09_ACT['N_lot']['cx'] - 110 / _k_lot_neil)
@@ -1260,6 +1262,11 @@ def ep09_plate(scene, name, cam, prints=None):
     return arr
 
 
+def q_of(cam, name):
+    """Door leaf quad of plate `name` in plate coordinates incl. the 4 px margin."""
+    return np.float32([[x * cam['k'] + cam['px'] + 4, y * cam['k'] + cam['py'] + 4] for x, y in EP09_QUADS[name]['door']])
+
+
 def layout_ep09(scene, shot):
     if shot in scene.sprites:
         return scene.sprites[shot]
@@ -1289,6 +1296,8 @@ def layout_ep09(scene, shot):
     dm = np.zeros(plate.shape[:2], np.float32)
     cv2.fillConvexPoly(dm, q.astype(np.int32), 1.0)
     out['door'] = cv2.GaussianBlur(dm, (0, 0), 2.0)
+    if sd['bg'] == 'bg_hall_open':                              # v3: closed-door plate for the outward swing at the start of the shot
+        out['swing'] = dict(closed=ep09_plate(scene, 'bg_hall', cam), qc=q_of(cam, 'bg_hall'), qo=q_of(cam, 'bg_hall_open'))
     scene.sprites[shot] = out
     return out
 
@@ -2182,6 +2191,11 @@ def ep09_motion(role, shot, b, lo):
             v = (lo - 0.3) / 0.15
             return 14.0 * math.sin(math.pi * v) * (1 - v), 0.0, 0.0
         return 0.0, 0.0, 0.0
+    if kind == 'open' and role in ('M', 'R'):               # v3: the leaf swings out and shoves them from their door-pushing spot back to the open-door stance
+        k_ = EP09_CAMS['hall']['k']
+        d0 = (EP09_ACT[role]['tipx'] - EP09_ACT[role + '_open']['tipx']) * k_
+        x = min(1.0, lo / 0.3)
+        return d0 * (1 - x) ** 2.2 * 1.0 - 0.0, 0.0, 3.0 * math.sin(math.pi * x) if x < 1 else 0.0
     if kind == 'walk' and role == 'D':                      # daughter walks out from the door edge (right) across the frame, to the left
         t = lo + float(b.get('walk_t0', 0.0))
         T_all = 2.3
@@ -2189,6 +2203,31 @@ def ep09_motion(role, shot, b, lo):
         x = x0 + (x1 - x0) * min(1.0, t / T_all)
         return x - W / 2.0, -10.0 * abs(math.sin(2 * math.pi * 1.7 * t)), 1.4 * math.sin(2 * math.pi * 1.7 * t)
     return 0.0, 0.0, 0.0
+
+
+EP09_SWING = 0.36         # v3: outward door swing at the start of hall_open_nurse (s)
+
+
+def ep09_swing_u(b, lo):
+    """Door swing progress 0 (closed) .. 1 (open), ease-out (shoved open); None when no swing is running."""
+    if b.get('anim') != 'open' or lo >= EP09_SWING:
+        return None
+    x = min(1.0, lo / EP09_SWING)
+    return 1 - (1 - x) ** 2.2
+
+
+def ep09_leaf(sw, open_plate, u):
+    """The swinging leaf: closed-leaf texture (PULL board included) blending into the open-leaf texture, perspective-warped onto the quad at u.
+    Returns (rgb uint8, alpha float) in plate coordinates."""
+    qc, qo = sw['qc'], sw['qo']
+    Q = (qc * (1 - u) + qo * u).astype(np.float32)
+    h, w = open_plate.shape[:2]
+    a_ = cv2.warpPerspective(sw['closed'], cv2.getPerspectiveTransform(qc, Q), (w, h), flags=cv2.INTER_LINEAR)
+    b_ = cv2.warpPerspective(open_plate, cv2.getPerspectiveTransform(qo, Q), (w, h), flags=cv2.INTER_LINEAR)
+    rgb = np.clip(a_.astype(np.float32) * (1 - u) + b_.astype(np.float32) * u, 0, 255).astype(np.uint8)
+    al = np.zeros((h, w), np.float32)
+    cv2.fillConvexPoly(al, np.round(Q).astype(np.int32), 1.0, lineType=cv2.LINE_AA)
+    return rgb, cv2.GaussianBlur(al, (0, 0), 0.8), Q
 
 
 def ep09_shake(b, lo, n):
@@ -2318,7 +2357,7 @@ def _frame_ep09(self, T, aidx, t_out=None):
     rng_bg = np.random.default_rng(1000 + pair)
     wx, wy = (int(v) for v in rng_bg.integers(-1, 2, size=2))
     kind = b.get('anim')
-    moving = (kind == 'hit' and lo < 0.8) or (kind == 'rush_m' and lo < 0.5) or kind == 'walk'
+    moving = (kind == 'hit' and lo < 0.8) or (kind == 'rush_m' and lo < 0.5) or kind == 'walk' or (kind == 'open' and lo < EP09_SWING + 0.05)
     offs = [0.0] if not moving else list(np.linspace(-0.012, 0.012, 9))
 
     def draw(tl_):
@@ -2329,22 +2368,40 @@ def _frame_ep09(self, T, aidx, t_out=None):
             m_ = lay['door'][..., None]
             base = np.clip(base * (1 - m_) + sh_ * m_, 0, 255).astype(np.uint8)
         fr = base[4 + wy:4 + wy + H, 4 + wx:4 + wx + W].copy()
+        def draw_actor(fr, role, spr):
+                dx, dy, ang = ep09_motion(role, shot, b, tl_)
+                lay_img, lev = self.ep09_actor(spr, role, b, e, local, shot, say, hold)
+                r = np.random.default_rng(shash(role, pair))
+                amp_p, amp_a = (0.5, 0.05) if hold else (1.2, 0.15)
+                jx, jy = r.uniform(-amp_p, amp_p, 2)
+                ja = r.uniform(-amp_a, amp_a)
+                if role == say:                               # feet stay planted: a small rock about the feet, no hop
+                    ang += 1.3 * min(1.0, lev) * (1 if math.sin(aidx * 2.3 + 0.7) > 0 else -1)
+                ang += b.get('tilt', {}).get(role, 0.0)
+                over(fr, spr.foot, spr.foot_xy[0] + int(round(dx)), spr.foot_xy[1])    # contact shadow follows the translation only
+                M = cv2.getRotationMatrix2D(spr.pivot, ang + ja, 1.0)
+                M[:, 2] += (jx + dx, jy + dy)
+                warped = cv2.warpAffine(lay_img, M, (lay_img.shape[1], lay_img.shape[0]), flags=cv2.INTER_LINEAR,
+                                        borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))
+                over(fr, warped, spr.ox, spr.oy)
+
+        su = ep09_swing_u(b, tl_) if 'swing' in lay else None
         for an, role, spr in lay['actors']:
-            dx, dy, ang = ep09_motion(role, shot, b, tl_)
-            lay_img, lev = self.ep09_actor(spr, role, b, e, local, shot, say, hold)
-            r = np.random.default_rng(shash(role, pair))
-            amp_p, amp_a = (0.5, 0.05) if hold else (1.2, 0.15)
-            jx, jy = r.uniform(-amp_p, amp_p, 2)
-            ja = r.uniform(-amp_a, amp_a)
-            if role == say:                               # feet stay planted: a small rock about the feet, no hop
-                ang += 1.3 * min(1.0, lev) * (1 if math.sin(aidx * 2.3 + 0.7) > 0 else -1)
-            ang += b.get('tilt', {}).get(role, 0.0)
-            over(fr, spr.foot, spr.foot_xy[0] + int(round(dx)), spr.foot_xy[1])    # contact shadow follows the translation only
-            M = cv2.getRotationMatrix2D(spr.pivot, ang + ja, 1.0)
-            M[:, 2] += (jx + dx, jy + dy)
-            warped = cv2.warpAffine(lay_img, M, (lay_img.shape[1], lay_img.shape[0]), flags=cv2.INTER_LINEAR,
-                                    borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))
-            over(fr, warped, spr.ox, spr.oy)
+            tmp = fr.copy() if (su is not None and an == 'NU') else None
+            draw_actor(fr, role, spr)
+            if su is not None and an == 'NU':                 # nurse is behind the swinging leaf; only her palm strip at the leaf's inner edge shows
+                leaf, al, Q = ep09_leaf(lay['swing'], lay['bg'], su)
+                cs = (slice(4 + wy, 4 + wy + H), slice(4 + wx, 4 + wx + W))
+                a3 = al[cs][..., None]
+                fr[:] = np.clip(fr * (1 - a3) + leaf[cs].astype(np.float32) * a3, 0, 255).astype(np.uint8)
+                sh_ = 22.0 * su                                 # strip right of the leaf's inner edge that stays in front: fingertips never pop
+                reg = np.float32([[0, 0], [Q[0][0] + sh_ - 4 - wx, Q[0][1] - 4 - wy], [Q[3][0] + sh_ - 4 - wx, Q[3][1] - 4 - wy], [0, H]])
+                reg[1:3, 0] = np.maximum(reg[1:3, 0], 0)
+                m_ = np.zeros((H, W), np.float32)
+                cv2.fillConvexPoly(m_, np.round(reg).astype(np.int32), 1.0, lineType=cv2.LINE_AA)
+                m3 = cv2.GaussianBlur(m_, (0, 0), 1.0)[..., None]
+                draw_actor(tmp, role, spr)
+                fr[:] = np.clip(fr * (1 - m3) + tmp * m3, 0, 255).astype(np.uint8)
         if kind == 'blast' and tl_ < 0.4:
             ep09_blast_layer(fr, tl_)
         return fr
