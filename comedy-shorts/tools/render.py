@@ -1048,6 +1048,47 @@ EP09_QUADS = {
 # the two worn hand prints on bg_hall_old (source-plate boxes x0, y0, x1, y1); they are lifted off the door and re-stamped under Russell's palms
 EP09_PRINT_BOXES = [(606, 640, 706, 766), (718, 636, 822, 768)]
 
+# v4: the door opens OUTWARD (into the hallway, toward the camera). Pinhole model fitted to the closed leaf of bg_hall: the hinge is the right
+# (near) edge, the leaf is rotated about that vertical edge toward the camera side; the camera is close (z ~ 1.25 m), so the free edge grows taller
+# and sweeps right as the leaf opens, ends up taller than the hinge edge and runs off the top / bottom of the frame.
+EP09_OPEN_DEG = 79.0
+EP09_CAM_F, EP09_CAM_C = 600.0, (512.0, 768.0)
+
+
+def _ep09_leaf_model():
+    q = EP09_QUADS['bg_hall']['door']
+    FT, HT, HB, FB = (np.array(v, np.float64) for v in (q[0], q[1], q[2], q[3]))
+    f, c = EP09_CAM_F, np.array(EP09_CAM_C)
+    zh, zf = f * 2.0 / (HB[1] - HT[1]), f * 2.0 / (FB[1] - FT[1])
+    ray = lambda p: np.array([(p[0] - c[0]) / f, (p[1] - c[1]) / f, 1.0])
+    PHT, PHB, PFT = ray(HT) * zh, ray(HB) * zh, ray(FT) * zf
+    D = PFT - PHT
+    D[1] = 0.0
+    L = np.linalg.norm(D)
+    Dh = D / L
+    n = np.array([-Dh[2], 0.0, Dh[0]])
+    if n @ (-PHT) < 0:
+        n = -n
+    return dict(f=f, c=c, PHT=PHT, PHB=PHB, Dh=Dh, n=n, L=L, FT=FT, FB=FB, HT=HT, HB=HB)
+
+
+def ep09_leaf_quad(deg):
+    """Outward-open leaf quad (free-top, hinge-top, hinge-bottom, free-bottom) in source-plate px at `deg` degrees open (0 = closed)."""
+    m = _ep09_leaf_model()
+    th = math.radians(deg)
+    d = math.cos(th) * m['Dh'] + math.sin(th) * m['n']
+    pr = lambda P: np.array([m['c'][0] + m['f'] * P[0] / P[2], m['c'][1] + m['f'] * P[1] / P[2]])
+    FT, FB = pr(m['PHT'] + m['L'] * d), pr(m['PHB'] + m['L'] * d)
+    th0 = math.radians(0)
+    d0 = math.cos(th0) * m['Dh'] + math.sin(th0) * m['n']
+    w = max(0.0, 1.0 - deg / EP09_OPEN_DEG)                      # model-vs-measured closed-leaf offset fades out as the leaf opens
+    FT = FT + (m['FT'] - pr(m['PHT'] + m['L'] * d0)) * w
+    FB = FB + (m['FB'] - pr(m['PHB'] + m['L'] * d0)) * w
+    return np.array([FT, m['HT'], m['HB'], FB], np.float64)
+
+
+EP09_QUADS['bg_hall_open_out'] = dict(door=ep09_leaf_quad(EP09_OPEN_DEG).tolist(), sign=None)
+
 
 def ep09_cam(z=1.0, px=None, anchor=None, at=None):
     """Plate placement: scale k, top-left (px, py) of the scaled plate in frame coordinates. anchor (source px) lands on screen point `at`."""
@@ -1079,7 +1120,7 @@ EP09_ACT = {
     # her door hand on the leaf edge (fingertip ~ frame x 928); her left side keeps >= 80 px from both pushers' arms.
     # v3: push pose (nurse_push.png = nurse.png with the raised arm swung down to horizontal, palm on the leaf's inner edge at x ~ 812,
     # clear of the PULL board and knob); she pushes the leaf outward, never touches its PULL face.
-    'NU': dict(puppet='nurse_push', role='NU', S=0.32, tipx=812, feet=1087),
+    'NU': dict(puppet='nurse_push', role='NU', S=0.32, tipx=841, feet=1087),   # v4: palm 25 px onto the outward-open leaf's face, just past its free edge (src x ~ 822)
     'D': dict(puppet='daughter@flip', role='D', S=0.5, cx=590, feet=1330),
 }
 
@@ -1096,8 +1137,8 @@ EP09_ACT['R_lot'] = _ep09_lot(EP09_ACT['R_old'])
 EP09_ACT['M_lot'] = _ep09_lot(EP09_ACT['M_old'])
 EP09_ACT['N_lot'] = dict(puppet='neil_old', role='N', S=0.46, cx=300, feet=1170)
 # v2 hall_open_nurse: pushers keep their bodies, palms pulled back so the nurse fits in the doorway (palm-to-nurse gap 85 / 113 px)
-EP09_ACT['M_open'] = dict(EP09_ACT['M'], tipx=538)   # v3: a further 26 px back so the nurse's push arm and bun clear both palms
-EP09_ACT['R_open'] = dict(EP09_ACT['R'], tipx=539)
+EP09_ACT['M_open'] = dict(EP09_ACT['M'], tipx=549)   # v3: a further 26 px back so the nurse's push arm and bun clear both palms
+EP09_ACT['R_open'] = dict(EP09_ACT['R'], tipx=551)
 # v2 lot_neil: old Neil moved to the left edge (-110 frame px), Marcus +240 and Russell +200 frame px to the right (gap 87 / 83 px, all faces visible)
 _k_lot_neil = EP09_CAMS['lot_neil']['k']
 EP09_ACT['N_lotB'] = dict(EP09_ACT['N_lot'], cx=EP09_ACT['N_lot']['cx'] - 110 / _k_lot_neil)
@@ -1108,7 +1149,7 @@ EP09_SHOTS = {
     'hall_neil': dict(bg='bg_hall', cam='hall', actors=['N']),
     'hall_both': dict(bg='bg_hall', cam='hall', actors=['M', 'R']),
     'hall_door_close': dict(bg='bg_hall', cam='hall', actors=['M', 'R']),
-    'hall_open_nurse': dict(bg='bg_hall_open', cam='hall', actors=['NU', 'M_open', 'R_open']),
+    'hall_open_nurse': dict(bg='bg_hall_open_out', cam='hall', actors=['NU', 'M_open', 'R_open']),
     'old_russell': dict(bg='bg_hall_old', cam='hall', actors=['R_old'], prints='R_old'),
     'old_daughter': dict(bg='bg_hall_old', cam='hall', actors=['R_old', 'D'], prints='R_old'),
     'lot_wide': dict(bg='bg_lot', cam='lot', actors=['R_lot']),
@@ -1119,7 +1160,7 @@ EP09_SHOTS = {
 EP09_CAPTION_Y = 1795      # caption card centre: low, so it never covers the door board or the figures' hands
 
 
-def ep09_pull_mask(tw, th):
+def ep09_pull_mask(tw, th, word='PULL'):
     """Float mask (th, tw) of a big heavy PULL filling the board texture (board aspect ~1.67)."""
     ss = 2
     img = Image.new('L', (tw * ss, th * ss), 0)
@@ -1128,20 +1169,20 @@ def ep09_pull_mask(tw, th):
     while True:
         f = font(FONT_HEAVY, size)
         sw_ = max(2, int(size * 0.03))
-        bb = d.textbbox((0, 0), 'PULL', font=f, stroke_width=sw_)
+        bb = d.textbbox((0, 0), word, font=f, stroke_width=sw_)
         if bb[2] - bb[0] <= tw * ss * 0.84 and bb[3] - bb[1] <= th * ss * 0.64:
             break
         size -= 4
-    d.text((tw * ss / 2 - (bb[0] + bb[2]) / 2, th * ss / 2 - (bb[1] + bb[3]) / 2), 'PULL', font=f, fill=255, stroke_width=sw_, stroke_fill=255)
+    d.text((tw * ss / 2 - (bb[0] + bb[2]) / 2, th * ss / 2 - (bb[1] + bb[3]) / 2), word, font=f, fill=255, stroke_width=sw_, stroke_fill=255)
     return np.asarray(img.resize((tw, th), Image.LANCZOS)).astype(np.float32) / 255
 
 
-def ep09_stamp_sign(arr, quad, k, ox, oy):
+def ep09_stamp_sign(arr, quad, k, ox, oy, word='PULL'):
     """Warp the PULL lettering onto the measured board quad (perspective) and ink it into the plate, keeping the paper grain."""
     q = np.float32([[x * k + ox, y * k + oy] for x, y in quad])
     tw = int(max(np.linalg.norm(q[1] - q[0]), np.linalg.norm(q[2] - q[3])) * 1.6)
     th = int(tw / 1.67)
-    m = cv2.GaussianBlur(ep09_pull_mask(tw, th), (0, 0), 0.9)
+    m = cv2.GaussianBlur(ep09_pull_mask(tw, th, word), (0, 0), 0.9)
     M = cv2.getPerspectiveTransform(np.float32([[0, 0], [tw, 0], [tw, th], [0, th]]), q)
     warped = cv2.warpPerspective(m, M, (arr.shape[1], arr.shape[0]), flags=cv2.INTER_LINEAR)
     f = arr.astype(np.float32)
@@ -1257,9 +1298,108 @@ def ep09_plate(scene, name, cam, prints=None):
             sub = pr[ys0 - y0:ys1 - y0, xs0 - x0:xs1 - x0]
             sa = al[ys0 - y0:ys1 - y0, xs0 - x0:xs1 - x0]
             arr[ys0:ys1, xs0:xs1] = np.clip(arr[ys0:ys1, xs0:xs1] * (1 - sa) + sub[..., :3] * sa, 0, 255).astype(np.uint8)
-    arr = ep09_stamp_sign(arr, EP09_QUADS[name]['sign'], k, px + 4, py + 4)
+    if EP09_QUADS[name]['sign'] is not None:
+        arr = ep09_stamp_sign(arr, EP09_QUADS[name]['sign'], k, px + 4, py + 4)
     scene.bgs[key] = arr
     return arr
+
+
+
+EP09_TEX = (480, 1152)           # rectified door leaf texture (w, h)
+EP09_KNOB = (882.0, 722.0)       # PULL-side knob centre on bg_hall (source px)
+
+
+def ep09_leaf_textures(scene):
+    """(pull face, push face) rectified leaf textures from the clean bg_hall plate. The push face: knob removed, a little darker, PUSH board."""
+    if 'ep09leaftex' in scene.bgs:
+        return scene.bgs['ep09leaftex']
+    raw = np.asarray(Image.open(asset_path('bg_hall')).convert('RGB'))
+    tw, th = EP09_TEX
+    q = np.float32(EP09_QUADS['bg_hall']['door'])
+    inset = np.float32([[2, 2], [tw - 2, 2], [tw - 2, th - 2], [2, th - 2]])
+    Hm = cv2.getPerspectiveTransform(q, np.float32([[0, 0], [tw, 0], [tw, th], [0, th]]))
+    tex = cv2.warpPerspective(raw, Hm, (tw, th), flags=cv2.INTER_CUBIC)
+    pt = lambda xy: cv2.perspectiveTransform(np.float32([[xy]]), Hm)[0, 0]
+    sign = np.float32([pt(p_) for p_ in EP09_QUADS['bg_hall']['sign']])
+    pull = ep09_stamp_sign(tex, sign, 1.0, 0, 0, 'PULL')
+    # push face: knob and the old board are cloned out with door felt; a smaller PUSH board (the old board's felt, rescaled) goes on at eye level, where the
+    # leaf's horizontal lines are level in this camera, so the lettering stays readable; then the whole face is a little darker (room-side face)
+    push = tex.copy()
+    kc = pt(EP09_KNOB)
+    kr = 50
+    yy, xx = np.mgrid[-kr:kr, -kr:kr]
+    mk = np.clip((kr - np.hypot(xx, yy)) / 14.0, 0, 1)[..., None]
+    y0, x0 = int(kc[1]) - kr, int(kc[0]) - kr
+    sy = int(kc[1]) + 190
+    patch = tex[sy - kr:sy + kr, x0:x0 + 2 * kr].astype(np.float32)
+    push[y0:y0 + 2 * kr, x0:x0 + 2 * kr] = np.clip(push[y0:y0 + 2 * kr, x0:x0 + 2 * kr] * (1 - mk) + patch * mk, 0, 255).astype(np.uint8)
+    sx0, sy0, sx1, sy1 = int(sign[:, 0].min()) - 10, int(sign[:, 1].min()) - 10, int(sign[:, 0].max()) + 12, int(sign[:, 1].max()) + 14
+    board = tex[sy0:sy1, sx0:sx1].copy()
+    bx0, by0, bx1, by1 = max(2, sx0 - 30), sy0 - 30, min(tw - 2, sx1 + 30), sy1 + 46
+    bh_, bw_ = by1 - by0, bx1 - bx0
+    src_y = min(int(kc[1]) + 70, th - bh_ - 60)                                    # clean felt strip low on the leaf (below the knob), same size, matched to the local shade
+    strip = tex[src_y:src_y + bh_, bx0:bx1].astype(np.float32)
+    rt = tex[by0 - 14:by0 - 4, bx0:bx1].reshape(-1, 3).astype(np.float32).mean(0)      # felt shade just above / below the cleared area: the clone is graded between them
+    rb = tex[by1 + 4:by1 + 14, bx0:bx1].reshape(-1, 3).astype(np.float32).mean(0)
+    rm = cv2.GaussianBlur(strip.mean(1)[:, None, :], (0, 0), 12)[:, 0, :]
+    tg = rt[None, :] + (rb - rt)[None, :] * (np.arange(bh_, dtype=np.float32)[:, None] / (bh_ - 1))
+    strip = np.clip(strip * (tg / rm)[:, None, :], 0, 255)
+    fm = np.ones((bh_, bw_), np.float32)
+    fm = cv2.GaussianBlur(np.pad(fm[3:-3, 3:-3], 3), (0, 0), 1.6)[..., None]
+    push[by0:by1, bx0:bx1] = np.clip(push[by0:by1, bx0:bx1] * (1 - fm) + strip * fm, 0, 255).astype(np.uint8)
+    nbw, nbh = 300, 168
+    nx0, ny0 = 150, int(0.50 * th)
+    nb = cv2.resize(board, (nbw, nbh), interpolation=cv2.INTER_AREA)
+    push[ny0:ny0 + nbh, nx0:nx0 + nbw] = nb
+    inner = np.float32([[nx0 + 14, ny0 + 14], [nx0 + nbw - 14, ny0 + 14], [nx0 + nbw - 14, ny0 + nbh - 14], [nx0 + 14, ny0 + nbh - 14]])
+    push = ep09_stamp_sign(push, inner, 1.0, 0, 0, 'PUSH')
+    push = np.clip(push.astype(np.float32) * np.array([0.86, 0.84, 0.83], np.float32), 0, 255).astype(np.uint8)
+    scene.bgs['ep09leaftex'] = (pull, push)
+    return scene.bgs['ep09leaftex']
+
+
+def ep09_open_leaf(scene, arr, cam, deg, mix):
+    """Draw the outward-open leaf (and its floor shadow) onto the scaled plate array `arr` (4 px margin). deg = degrees open, mix 0..1 = PULL face -> PUSH face.
+    Returns a new array."""
+    pull, push = ep09_leaf_textures(scene)
+    tw, th = EP09_TEX
+    h, w = arr.shape[:2]
+    k, ox, oy = cam['k'], cam['px'] + 4, cam['py'] + 4
+    Qs = ep09_leaf_quad(deg)
+    Q = (Qs * k + np.array([ox, oy])).astype(np.float32)
+    out = arr.astype(np.float32)
+    # floor shadow cast toward the lower left of the bottom edge (soft)
+    sh = np.zeros((h, w), np.float32)
+    HB, FB = Q[2], Q[3]
+    poly = np.float32([HB + [-3, 0], FB + [-3, 0], FB + [-210 * k, 70 * k], HB + [-210 * k, 8 * k]])
+    cv2.fillConvexPoly(sh, np.round(poly).astype(np.int32), 1.0, lineType=cv2.LINE_AA)
+    sh = cv2.GaussianBlur(sh, (0, 0), 28 * k)
+    floor = np.clip((np.arange(h)[:, None] - (HB[1] - 30 * k)) / (30 * k), 0, 1)       # only on the floor, never up the wall
+    out *= (1 - 0.30 * sh * floor)[..., None] * np.array([1.0, 0.98, 0.96], np.float32)
+    Ht = cv2.getPerspectiveTransform(np.float32([[0, 0], [tw, 0], [tw, th], [0, th]]), Q)
+    face = pull.astype(np.float32) * (1 - mix) + push.astype(np.float32) * mix
+    leaf = cv2.warpPerspective(face, Ht, (w, h), flags=cv2.INTER_LINEAR)
+    al = np.zeros((h, w), np.float32)
+    cv2.fillConvexPoly(al, np.round(Q).astype(np.int32), 1.0, lineType=cv2.LINE_AA)
+    al = cv2.GaussianBlur(al, (0, 0), 0.7)
+    # felt grain that the stretched texture lacks, tied to a slight shade gradient (darker toward the free edge)
+    rng = np.random.default_rng(91)
+    gr = cv2.GaussianBlur(rng.standard_normal((h, w)).astype(np.float32), (0, 0), 0.9) * 7.5
+    xs = np.clip((np.arange(w)[None, :] - Q[0][0]) / max(1.0, Q[1][0] - Q[0][0]), 0, 1)
+    leaf = leaf + gr[..., None]
+    # paper-thick free edge (cream strip to the left of the edge)
+    ed = np.zeros((h, w), np.float32)
+    cv2.fillConvexPoly(ed, np.round(np.float32([Q[0] + [-9 * k, 0], Q[0], Q[3], Q[3] + [-9 * k, 0]])).astype(np.int32), 1.0, lineType=cv2.LINE_AA)
+    ed = cv2.GaussianBlur(ed, (0, 0), 0.8)
+    out = out * (1 - ed[..., None] * 0.95) + np.array([226, 196, 150], np.float32) * (ed[..., None] * 0.95)
+    out = out * (1 - al[..., None]) + leaf * al[..., None]
+    return np.clip(out, 0, 255).astype(np.uint8)
+
+
+def ep09_swing_pose(su):
+    """(degrees open, PULL->PUSH face mix) for swing progress su 0..1."""
+    deg = EP09_OPEN_DEG * su
+    return deg, 0.0                                              # v5: the hallway (PULL) face stays toward the camera for the whole swing and the open hold
 
 
 def q_of(cam, name):
@@ -1296,8 +1436,9 @@ def layout_ep09(scene, shot):
     dm = np.zeros(plate.shape[:2], np.float32)
     cv2.fillConvexPoly(dm, q.astype(np.int32), 1.0)
     out['door'] = cv2.GaussianBlur(dm, (0, 0), 2.0)
-    if sd['bg'] == 'bg_hall_open':                              # v3: closed-door plate for the outward swing at the start of the shot
-        out['swing'] = dict(closed=ep09_plate(scene, 'bg_hall', cam), qc=q_of(cam, 'bg_hall'), qo=q_of(cam, 'bg_hall_open'))
+    if sd['bg'] == 'bg_hall_open_out':                          # v4: empty doorway plate; the outward-open leaf is drawn on top (static at rest, animated in the swing)
+        out['swing'] = dict(empty=plate, cam=cam)
+        out['bg'] = ep09_open_leaf(scene, plate, cam, EP09_OPEN_DEG, 0.0)
     scene.sprites[shot] = out
     return out
 
@@ -2191,11 +2332,13 @@ def ep09_motion(role, shot, b, lo):
             v = (lo - 0.3) / 0.15
             return 14.0 * math.sin(math.pi * v) * (1 - v), 0.0, 0.0
         return 0.0, 0.0, 0.0
-    if kind == 'open' and role in ('M', 'R'):               # v3: the leaf swings out and shoves them from their door-pushing spot back to the open-door stance
+    if kind == 'open' and role in ('M', 'R'):               # v4: the outward-swinging leaf shoves them off the door: a 55 px knock-back on impact, then a stagger back to the open-door stance
         k_ = EP09_CAMS['hall']['k']
         d0 = (EP09_ACT[role]['tipx'] - EP09_ACT[role + '_open']['tipx']) * k_
-        x = min(1.0, lo / 0.3)
-        return d0 * (1 - x) ** 2.2 * 1.0 - 0.0, 0.0, 3.0 * math.sin(math.pi * x) if x < 1 else 0.0
+        ss = lambda v: (lambda t: t * t * (3 - 2 * t))(_ep09_u(v))
+        D = 55.0 * ss((lo - 0.04) / 0.07) + (d0 - 55.0) * ss((lo - 0.11) / 0.30)
+        x = _ep09_u((lo - 0.04) / 0.34)
+        return d0 - D, -5.0 * math.sin(math.pi * min(1.0, 3.0 * x) ** 0.7) * (1 - x) if x < 1 else 0.0, 4.5 * math.sin(math.pi * x) * (1 - 0.5 * x) if x < 1 else 0.0
     if kind == 'walk' and role == 'D':                      # daughter walks out from the door edge (right) across the frame, to the left
         t = lo + float(b.get('walk_t0', 0.0))
         T_all = 2.3
@@ -2214,20 +2357,6 @@ def ep09_swing_u(b, lo):
         return None
     x = min(1.0, lo / EP09_SWING)
     return 1 - (1 - x) ** 2.2
-
-
-def ep09_leaf(sw, open_plate, u):
-    """The swinging leaf: closed-leaf texture (PULL board included) blending into the open-leaf texture, perspective-warped onto the quad at u.
-    Returns (rgb uint8, alpha float) in plate coordinates."""
-    qc, qo = sw['qc'], sw['qo']
-    Q = (qc * (1 - u) + qo * u).astype(np.float32)
-    h, w = open_plate.shape[:2]
-    a_ = cv2.warpPerspective(sw['closed'], cv2.getPerspectiveTransform(qc, Q), (w, h), flags=cv2.INTER_LINEAR)
-    b_ = cv2.warpPerspective(open_plate, cv2.getPerspectiveTransform(qo, Q), (w, h), flags=cv2.INTER_LINEAR)
-    rgb = np.clip(a_.astype(np.float32) * (1 - u) + b_.astype(np.float32) * u, 0, 255).astype(np.uint8)
-    al = np.zeros((h, w), np.float32)
-    cv2.fillConvexPoly(al, np.round(Q).astype(np.int32), 1.0, lineType=cv2.LINE_AA)
-    return rgb, cv2.GaussianBlur(al, (0, 0), 0.8), Q
 
 
 def ep09_shake(b, lo, n):
@@ -2361,7 +2490,8 @@ def _frame_ep09(self, T, aidx, t_out=None):
     offs = [0.0] if not moving else list(np.linspace(-0.012, 0.012, 9))
 
     def draw(tl_):
-        base = lay['bg']
+        su_ = ep09_swing_u(b, tl_) if 'swing' in lay else None
+        base = lay['swing']['empty'] if su_ is not None else lay['bg']
         ddx, ddy = ep09_door_shake(b, tl_)
         if abs(ddx) > 0.05 or abs(ddy) > 0.05:
             sh_ = cv2.warpAffine(base, np.float32([[1, 0, ddx], [0, 1, ddy]]), (base.shape[1], base.shape[0]), borderMode=cv2.BORDER_REFLECT)
@@ -2385,17 +2515,19 @@ def _frame_ep09(self, T, aidx, t_out=None):
                                         borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))
                 over(fr, warped, spr.ox, spr.oy)
 
-        su = ep09_swing_u(b, tl_) if 'swing' in lay else None
+        su = su_
         for an, role, spr in lay['actors']:
             tmp = fr.copy() if (su is not None and an == 'NU') else None
             draw_actor(fr, role, spr)
-            if su is not None and an == 'NU':                 # nurse is behind the swinging leaf; only her palm strip at the leaf's inner edge shows
-                leaf, al, Q = ep09_leaf(lay['swing'], lay['bg'], su)
-                cs = (slice(4 + wy, 4 + wy + H), slice(4 + wx, 4 + wx + W))
-                a3 = al[cs][..., None]
-                fr[:] = np.clip(fr * (1 - a3) + leaf[cs].astype(np.float32) * a3, 0, 255).astype(np.uint8)
-                sh_ = 22.0 * su                                 # strip right of the leaf's inner edge that stays in front: fingertips never pop
-                reg = np.float32([[0, 0], [Q[0][0] + sh_ - 4 - wx, Q[0][1] - 4 - wy], [Q[3][0] + sh_ - 4 - wx, Q[3][1] - 4 - wy], [0, H]])
+            if su is not None and an == 'NU':                 # v4: the leaf sweeps over the nurse (she is inside); only her palm strip at the leaf's free edge stays in front
+                deg, mx = ep09_swing_pose(su)
+                cam_ = lay['swing']['cam']
+                Q = ep09_leaf_quad(deg) * cam_['k'] + np.array([cam_['px'], cam_['py']])    # frame coords (no margin)
+                full = ep09_open_leaf(self.scene, np.pad(fr, ((4, 4), (4, 4), (0, 0)), mode='edge'), cam_, deg, mx)
+                lfr = np.ascontiguousarray(full[4:4 + H, 4:4 + W])
+                fr[:] = lfr
+                sh_ = 40.0 * su                                 # strip right of the free edge that stays in front: fingertips never pop
+                reg = np.float32([[0, -50], [Q[0][0] + sh_ - wx, Q[0][1] - 50 - wy], [Q[3][0] + sh_ - wx, Q[3][1] + 50 - wy], [0, H + 50]])
                 reg[1:3, 0] = np.maximum(reg[1:3, 0], 0)
                 m_ = np.zeros((H, W), np.float32)
                 cv2.fillConvexPoly(m_, np.round(reg).astype(np.int32), 1.0, lineType=cv2.LINE_AA)
@@ -2782,12 +2914,13 @@ def build_audio_ep09(tl, total, path):
         if e['audio'] is not None:
             s = int(e['start'] * SR)
             mix[s:s + len(e['audio'])] += e['audio']
-    for e in tl:                                                    # one-shots at beat start + sfx_at
-        nm = e['beat'].get('sfx')
-        if nm in EP09_SFX:
-            x = EP09_SFX[nm]() * EP09_SFX_GAIN[nm]
-            s0 = int((e['start'] + float(e['beat'].get('sfx_at', 0.0))) * SR)
-            mix[s0:s0 + len(x)] += x[:max(0, min(len(x), n - s0))]
+    for e in tl:                                                    # one-shots at beat start + sfx_at (sfx2 / sfx2_at: a second layered one-shot)
+        for key, atk in (('sfx', 'sfx_at'), ('sfx2', 'sfx2_at')):
+            nm = e['beat'].get(key)
+            if nm in EP09_SFX:
+                x = EP09_SFX[nm]() * EP09_SFX_GAIN[nm]
+                s0 = int((e['start'] + float(e['beat'].get(atk, 0.0))) * SR)
+                mix[s0:s0 + len(x)] += x[:max(0, min(len(x), n - s0))]
     w0 = next((e['start'] + float(e['beat']['wind_at']) for e in tl if 'wind_at' in e['beat']), None)
     if w0 is not None:                                              # wind from the lot onward, to the end of the body (fades in and out)
         i0, i1 = int(w0 * SR), int(total * SR)

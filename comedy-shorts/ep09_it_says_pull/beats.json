@@ -135,7 +135,9 @@
    "anim": "open",
    "sfx": "door_open",
    "sfx_at": 0.0,
-   "note": "硬切 bg_hall_open；護士企門口光入面手撐住開咗嘅門；Russell/Marcus 仍推空氣"
+   "note": "硬切 bg_hall_open_out；門向外（走廊）彈開，撞開 Russell/Marcus（hit 疊 door_open）；護士企門口光入面，手撐住門背面近自由邊；Russell/Marcus 仍推空氣",
+   "sfx2": "hit",
+   "sfx2_at": 0.07
   },
   {
    "shot": "hall_open_nurse",
