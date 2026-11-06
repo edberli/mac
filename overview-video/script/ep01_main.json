@@ -1,0 +1,297 @@
+{
+  "title": "EP01 — Main (after the intro)",
+  "voices": {
+    "H": {
+      "model": "en_US-ryan-medium",
+      "fx": "human",
+      "minimax": "English_FriendlyPerson",
+      "minimax_fx": ""
+    },
+    "A": {
+      "model": "en_GB-alan-medium",
+      "fx": "robot",
+      "minimax": "English_Gentle-voiced_man",
+      "minimax_fx": "robot"
+    }
+  },
+  "beats": [
+    {
+      "mark": "start"
+    },
+    {
+      "pause": 0.4
+    },
+    {
+      "say": "H",
+      "text": "I can't see it. Not even close.",
+      "emotion": "surprised"
+    },
+    {
+      "pause": 0.3
+    },
+    {
+      "mark": "pencil"
+    },
+    {
+      "say": "A",
+      "text": "The wall is only about six meters wide. From four hundred kilometers, that's like trying to spot a pencil from half a kilometer away."
+    },
+    {
+      "pause": 0.4
+    },
+    {
+      "mark": "why"
+    },
+    {
+      "say": "H",
+      "text": "Then why does everyone say you can?"
+    },
+    {
+      "pause": 0.3
+    },
+    {
+      "mark": "timeline"
+    },
+    {
+      "say": "A",
+      "text": "The claim was already written down in seventeen fifty-four. The first human reached space in nineteen sixty-one."
+    },
+    {
+      "pause": 0.25
+    },
+    {
+      "say": "A",
+      "text": "People repeated it for two hundred years before anyone could check."
+    },
+    {
+      "pause": 0.4
+    },
+    {
+      "mark": "canSee"
+    },
+    {
+      "say": "H",
+      "text": "So what can you actually see from up here?"
+    },
+    {
+      "pause": 0.3
+    },
+    {
+      "say": "A",
+      "text": "This station circles the Earth every ninety minutes. Sixteen sunrises a day. Watch the night side."
+    },
+    {
+      "pause": 0.3
+    },
+    {
+      "mark": "night"
+    },
+    {
+      "pause": 1.2
+    },
+    {
+      "say": "H",
+      "text": "Whoa... those lights.",
+      "emotion": "surprised"
+    },
+    {
+      "pause": 0.3
+    },
+    {
+      "say": "A",
+      "text": "Cities. Most borders are invisible from here. A few are lit up with floodlights, and those you can see."
+    },
+    {
+      "pause": 0.3
+    },
+    {
+      "say": "A",
+      "text": "Up here, a border only shows up if someone switches the lights on."
+    },
+    {
+      "pause": 0.4
+    },
+    {
+      "mark": "aurora"
+    },
+    {
+      "say": "H",
+      "text": "And that green glow?",
+      "emotion": "surprised"
+    },
+    {
+      "pause": 0.25
+    },
+    {
+      "say": "A",
+      "text": "An aurora. And those flashes in the clouds are thunderstorms. You're looking down on them."
+    },
+    {
+      "pause": 0.5
+    },
+    {
+      "mark": "further"
+    },
+    {
+      "say": "A",
+      "text": "But the view that really changes people is further out."
+    },
+    {
+      "pause": 0.4
+    },
+    {
+      "mark": "earthrise"
+    },
+    {
+      "pause": 0.8
+    },
+    {
+      "say": "A",
+      "text": "In nineteen sixty-eight, three astronauts flew around the Moon to study it. Then the Earth rose over the horizon, and they grabbed a camera."
+    },
+    {
+      "pause": 0.3
+    },
+    {
+      "say": "A",
+      "text": "One of them said they went to explore the Moon, and ended up discovering the Earth."
+    },
+    {
+      "pause": 0.5
+    },
+    {
+      "mark": "voyager"
+    },
+    {
+      "say": "A",
+      "text": "In nineteen ninety, the Voyager one probe was about six billion kilometers away when it turned its camera back toward home."
+    },
+    {
+      "pause": 0.4
+    },
+    {
+      "mark": "dot"
+    },
+    {
+      "say": "A",
+      "text": "Earth was smaller than a single pixel."
+    },
+    {
+      "pause": 0.3
+    },
+    {
+      "say": "A",
+      "text": "Every person you've ever known, every war, every border... all inside that tiny dot."
+    },
+    {
+      "pause": 0.8
+    },
+    {
+      "mark": "back"
+    },
+    {
+      "say": "H",
+      "text": "So what's the change? You said people come back different."
+    },
+    {
+      "pause": 0.3
+    },
+    {
+      "say": "A",
+      "text": "It has a name. The overview effect."
+    },
+    {
+      "pause": 0.3
+    },
+    {
+      "say": "A",
+      "text": "Astronauts describe the same thing. Borders stop mattering. Old arguments feel tiny. And the Earth suddenly looks fragile."
+    },
+    {
+      "pause": 0.5
+    },
+    {
+      "mark": "shatner"
+    },
+    {
+      "say": "A",
+      "text": "In twenty twenty-one, an actor who played a starship captain for decades finally flew to space, at ninety years old."
+    },
+    {
+      "pause": 0.3
+    },
+    {
+      "say": "A",
+      "text": "Afterwards, he said what he felt most wasn't joy. It was grief.",
+      "emotion": "sad"
+    },
+    {
+      "pause": 0.4
+    },
+    {
+      "mark": "grief"
+    },
+    {
+      "say": "H",
+      "text": "Grief? Why?",
+      "emotion": "surprised"
+    },
+    {
+      "pause": 0.3
+    },
+    {
+      "say": "A",
+      "text": "Below him was everything. Above him, nothing but black.",
+      "emotion": "sad"
+    },
+    {
+      "pause": 0.8
+    },
+    {
+      "mark": "ending"
+    },
+    {
+      "say": "A",
+      "text": "So next time something small ruins your day, remember that dot.",
+      "emotion": "happy"
+    },
+    {
+      "pause": 0.4
+    },
+    {
+      "say": "H",
+      "text": "Everything I care about... in one tiny point of light."
+    },
+    {
+      "pause": 0.6
+    },
+    {
+      "mark": "endCard"
+    },
+    {
+      "pause": 4.0
+    },
+    {
+      "mark": "end"
+    }
+  ],
+  "sfx": [
+    {
+      "type": "pad",
+      "from": "start",
+      "to": "end"
+    },
+    {
+      "type": "hit",
+      "at": "earthrise"
+    },
+    {
+      "type": "hit",
+      "at": "dot"
+    },
+    {
+      "type": "hit",
+      "at": "endCard"
+    }
+  ]
+}

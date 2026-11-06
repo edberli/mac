@@ -1,0 +1,47 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  html,body{margin:0;background:#070b1a;}
+  svg{display:block}
+  text{font-family:'Inter',sans-serif}
+</style>
+<script src="robots.js"></script>
+</head><body>
+<svg id="s" width="1920" height="1080" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg"></svg>
+<script>
+// deterministic star field
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const stars = Array.from({length: 160}, () => [rnd() * 1920, rnd() * 1080, rnd() * 1.6 + 0.3, rnd() * 6]);
+
+function blinkAt(t, off) {
+  const p = (t + off) % 3.4;            // blink every 3.4 s
+  return p < 0.16 ? 1 - Math.abs(p - 0.08) / 0.08 : 0;
+}
+
+window.render = function (t) {
+  const cols = [240, 720, 1200, 1680];
+  const exprs = ['neutral', 'happy', 'surprised', 'sad'];
+  let g = R.defs;
+  g += `<defs><radialGradient id="bg" cx="0.5" cy="0.35" r="0.8"><stop offset="0" stop-color="#16204a"/><stop offset="1" stop-color="#05070f"/></radialGradient></defs>`;
+  g += `<rect width="1920" height="1080" fill="url(#bg)"/>`;
+  g += stars.map(([x, y, r, ph]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#fff" opacity="${0.35 + 0.35 * Math.sin(t * 2 + ph)}"/>`).join('');
+  g += `<text x="960" y="70" text-anchor="middle" fill="#fff" font-size="40" font-weight="700" letter-spacing="1">Robot Guide — Character Options</text>`;
+  g += `<text x="960" y="108" text-anchor="middle" fill="#9aa7c7" font-size="20">Pick one · each shown with four expressions</text>`;
+  R.list.forEach((r, i) => {
+    const cx = cols[i];
+    g += `<rect x="${cx - 220}" y="140" width="440" height="900" rx="28" fill="#ffffff" opacity="0.035"/>`;
+    g += `<g transform="translate(${cx} 390) scale(0.8)">${R[r.key]('neutral', t + i * 0.7, blinkAt(t, i * 0.9))}</g>`;
+    g += `<text x="${cx}" y="640" text-anchor="middle" fill="${r.color}" font-size="34" font-weight="800">${r.name}</text>`;
+    g += `<text x="${cx}" y="674" text-anchor="middle" fill="#c9d2e8" font-size="19">${r.sub}</text>`;
+    exprs.forEach((e, j) => {
+      const hx = cx - 100 + (j % 2) * 200, hy = 770 + Math.floor(j / 2) * 140;
+      const sc = r.key === 'orbi' ? 0.38 : 0.56;
+      g += `<g transform="translate(${hx} ${hy + (r.key === 'orbi' ? 2 : 0)}) scale(${sc})">${R[r.key + 'Head'](e, t + i, 0)}</g>`;
+      g += `<text x="${hx}" y="${hy + 66}" text-anchor="middle" fill="#8e9bbb" font-size="16">${e[0].toUpperCase() + e.slice(1)}</text>`;
+    });
+  });
+  document.getElementById('s').innerHTML = g;
+};
+render(0.4);
+</script>
+</body></html>

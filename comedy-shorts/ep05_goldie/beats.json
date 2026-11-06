@@ -1,0 +1,34 @@
+{
+  "voices": {
+    "N": {"minimax": "English_ReservedYoungMan", "speed": 1.05},
+    "R": {"minimax": "English_DecentYoungMan", "speed": 1.05},
+    "M": {"minimax": "English_Comedian", "speed": 1.2}
+  },
+  "shots": {
+    "wide": {"bg": "bg_wide", "cast": {"M": "marcus", "R": "russell", "N": "neil"}, "foreground": "table_box"},
+    "r": {"bg": "bg_sofa_close", "cast": {"R": "russell"}},
+    "n": {"bg": "bg_sofa_close", "cast": {"N": "neil"}},
+    "m": {"bg": "bg_sofa_close", "cast": {"M": "marcus"}},
+    "m_jump": {"bg": "bg_sofa_close", "cast": {"M": "marcus_jump"}}
+  },
+  "rest_mouth": {"R": "smirk", "N": "flat", "M": "grin"},
+  "beats": [
+    {"shot": "wide", "say": "N", "text": "We're here to say goodbye to Goldie. Russell, you fed him while I was away. Say something nice.", "emotion": "sad", "after": 0.05, "look": {"M": "right", "R": "right", "N": "left"}},
+    {"shot": "m", "say": "M", "text": "R.I.P. GOLDIE! BEST FISH EVER! I'M SO SAD! LET'S GOOOO!", "emotion": "happy", "after": 0.0, "look": {"M": "center"}},
+    {"shot": "r", "say": "R", "text": "Goldie was small. And orange. And he was delicious.", "emotion": "neutral", "after": 0.2, "look": {"R": "center"}},
+    {"shot": "n", "hold": 0.8, "look": {"N": "center"}, "look_to": {"N": "left"}},
+    {"shot": "r", "say": "R", "text": "Delightful. I said delightful.", "emotion": "neutral", "speed": 1.25, "after": 0.0, "look": {"R": "right"}},
+    {"shot": "n", "say": "N", "text": "When did you last see him?", "emotion": "neutral", "after": 0.0, "look": {"N": "left"}},
+    {"shot": "r", "say": "R", "text": "Tuesday. He looked great. He had this lemony glow.", "emotion": "neutral", "after": 0.2, "look": {"R": "center"}},
+    {"shot": "n", "hold": 0.9, "look": {"N": "left"}},
+    {"shot": "r", "say": "R", "text": "He was a light meal of a fish. A light soul. Of a fish.", "emotion": "neutral", "speed": 1.25, "after": 0.05, "look": {"R": "right"}},
+    {"shot": "n", "say": "N", "text": "Russell, did you eat my fish?", "emotion": "neutral", "after": 0.2, "look": {"N": "left"}},
+    {"shot": "r", "hold": 1.0, "look": {"R": "center"}, "look_to": {"R": "left"}},
+    {"shot": "m_jump", "say": "M", "text": "YOOOOO! HE ATE THE FISH!", "emotion": "happy", "after": 0.0, "look": {"M": "center"}},
+    {"shot": "r", "say": "R", "text": "How dare you. I have grieved more than anyone in this room.", "emotion": "neutral", "after": 0.05, "look": {"R": "right"}},
+    {"shot": "n", "say": "N", "text": "You have a fin in your teeth.", "emotion": "neutral", "speed": 0.92, "after": 0.3, "look": {"N": "left"}},
+    {"shot": "r", "hold": 1.3, "look": {"R": "right"}},
+    {"shot": "r", "say": "R", "text": "He was a little dry.", "emotion": "neutral", "after": 0.15, "look": {"R": "right"}},
+    {"shot": "title", "hold": 1.8, "text": "GOLDIE", "sfx": "ding"}
+  ]
+}

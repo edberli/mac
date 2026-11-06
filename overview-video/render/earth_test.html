@@ -1,0 +1,24 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<script type="importmap">{ "imports": { "three": "/node_modules/three/build/three.module.js" } }</script>
+<style>html,body{margin:0;background:#000}</style>
+</head><body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script type="module">
+import { createEarth } from './lib/earth.js';
+const ctx = document.getElementById('c').getContext('2d');
+const E = await createEarth();
+window.setTimeline = () => {};
+window.render = (f) => {
+  const views = [
+    { lat: 38, lon: 112, alt: 400, heading: 45, pitch: 12.8, sun: { az: -70, el: 30 } },
+    { lat: 38, lon: 112, alt: 400, heading: 45, pitch: 12.8, sun: { az: -100, el: 8 } },
+    { lat: 30, lon: 100, alt: 400, heading: 70, pitch: 6, sun: { az: 0, el: -4 }, starLevel: 0.8 },
+  ];
+  ctx.clearRect(0, 0, 1920, 1080);
+  ctx.drawImage(E.render(views[f % views.length]), 0, 0);
+  return document.getElementById('c').toDataURL('image/png');
+};
+window.ready = true;
+</script>
+</body></html>

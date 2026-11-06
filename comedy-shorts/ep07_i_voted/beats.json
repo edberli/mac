@@ -1,0 +1,304 @@
+{
+  "voices": {
+    "N": {
+      "minimax": "English_ReservedYoungMan",
+      "speed": 1.05
+    },
+    "R": {
+      "minimax": "English_DecentYoungMan",
+      "speed": 1.05
+    },
+    "M": {
+      "minimax": "English_Comedian",
+      "speed": 1.3
+    }
+  },
+  "shots": {
+    "marcus_door": {
+      "cast": {
+        "M": "marcus_door"
+      },
+      "no_mouth": true
+    },
+    "marcus_bag": {
+      "cast": {
+        "M": "marcus_bag"
+      }
+    },
+    "marcus_sticker": {
+      "cast": {
+        "M": "marcus_sticker"
+      }
+    },
+    "neil": {
+      "cast": {
+        "N": "neil"
+      }
+    },
+    "russell": {
+      "cast": {
+        "R": "russell"
+      }
+    },
+    "sticker_close": {
+      "fullscreen": true,
+      "bg": "sticker_close"
+    },
+    "end_tag": {
+      "fullscreen": true,
+      "bg": "end_tag"
+    }
+  },
+  "rest_mouth": {
+    "R": "smirk",
+    "N": "flat",
+    "M": "grin"
+  },
+  "beats": [
+    {
+      "shot": "marcus_door",
+      "say": "M",
+      "text": "DEMOCRACY, BABY!",
+      "emotion": "happy",
+      "look": {
+        "M": "center"
+      },
+      "speed": 1.3,
+      "after": 0.1,
+      "burst": true,
+      "sfx": "door_burst"
+    },
+    {
+      "shot": "russell",
+      "say": "R",
+      "text": "You voted?",
+      "emotion": "neutral",
+      "look": {
+        "R": "center"
+      },
+      "speed": 1.05,
+      "after": 0.1
+    },
+    {
+      "shot": "marcus_bag",
+      "say": "M",
+      "text": "We lost Dave in that line.",
+      "emotion": "sad",
+      "look": {
+        "M": "center"
+      },
+      "speed": 0.9,
+      "after": 0.1,
+      "mouth_rest": "flat",
+      "sfx": "sad_music_start"
+    },
+    {
+      "shot": "russell",
+      "say": "R",
+      "text": "Dave had work.",
+      "emotion": "neutral",
+      "look": {
+        "R": "center"
+      },
+      "speed": 1.05,
+      "after": 0.1
+    },
+    {
+      "shot": "marcus_bag",
+      "say": "M",
+      "text": "He looked at his watch. He said, \"I'll come back later.\"",
+      "emotion": "sad",
+      "look": {
+        "M": "center"
+      },
+      "speed": 0.9,
+      "after": 0.0,
+      "mouth_rest": "flat"
+    },
+    {
+      "shot": "marcus_bag",
+      "hold": 1.0,
+      "look": {
+        "M": "center"
+      },
+      "mouth_rest": "flat",
+      "push": true,
+      "note": "靜 1 秒，慢慢推近"
+    },
+    {
+      "shot": "marcus_bag",
+      "say": "M",
+      "text": "Nobody comes back later.",
+      "emotion": "sad",
+      "look": {
+        "M": "center"
+      },
+      "speed": 0.9,
+      "after": 0.1,
+      "mouth_rest": "flat"
+    },
+    {
+      "shot": "russell",
+      "say": "R",
+      "text": "I saw him at lunch.",
+      "emotion": "neutral",
+      "look": {
+        "R": "center"
+      },
+      "speed": 1.05,
+      "after": 0.1
+    },
+    {
+      "shot": "marcus_bag",
+      "say": "M",
+      "text": "You weren't there, Russell.",
+      "emotion": "sad",
+      "look": {
+        "M": "center"
+      },
+      "speed": 0.9,
+      "after": 0.1,
+      "mouth_rest": "flat"
+    },
+    {
+      "shot": "russell",
+      "say": "R",
+      "text": "I was right behind you.",
+      "emotion": "neutral",
+      "look": {
+        "R": "center"
+      },
+      "speed": 1.05,
+      "after": 0.1
+    },
+    {
+      "shot": "marcus_bag",
+      "say": "M",
+      "text": "You were there. But you weren't THERE.",
+      "emotion": "sad",
+      "look": {
+        "M": "center"
+      },
+      "speed": 0.9,
+      "after": 0.0,
+      "mouth_rest": "flat"
+    },
+    {
+      "shot": "neil",
+      "hold": 0.6,
+      "look": {
+        "N": "eyes_closed"
+      },
+      "note": "靜 0.6 秒，閉埋眼"
+    },
+    {
+      "shot": "marcus_bag",
+      "say": "M",
+      "text": "Eleven minutes. A woman named Carol handed me a pen.",
+      "emotion": "sad",
+      "look": {
+        "M": "center"
+      },
+      "speed": 0.9,
+      "after": 0.0,
+      "mouth_rest": "flat"
+    },
+    {
+      "shot": "marcus_bag",
+      "hold": 0.8,
+      "look": {
+        "M": "center"
+      },
+      "mouth_rest": "flat",
+      "note": "靜 0.8 秒"
+    },
+    {
+      "shot": "marcus_bag",
+      "say": "M",
+      "text": "It was out of ink.",
+      "emotion": "sad",
+      "look": {
+        "M": "center"
+      },
+      "speed": 0.85,
+      "after": 0.1,
+      "mouth_rest": "flat"
+    },
+    {
+      "shot": "russell",
+      "say": "R",
+      "text": "What's in the bag?",
+      "emotion": "neutral",
+      "look": {
+        "R": "center"
+      },
+      "speed": 1.05,
+      "after": 0.1
+    },
+    {
+      "shot": "marcus_bag",
+      "say": "M",
+      "text": "Dave's lunch. He said, \"Hold this.\"",
+      "emotion": "sad",
+      "look": {
+        "M": "center"
+      },
+      "speed": 0.9,
+      "after": 0.1,
+      "mouth_rest": "flat"
+    },
+    {
+      "shot": "russell",
+      "say": "R",
+      "text": "So where is it?",
+      "emotion": "neutral",
+      "look": {
+        "R": "center"
+      },
+      "speed": 1.05,
+      "after": 0.0
+    },
+    {
+      "shot": "marcus_sticker",
+      "hold": 0.5,
+      "look": {
+        "M": "down"
+      },
+      "mouth_rest": "flat",
+      "note": "靜 0.5 秒，望住自己心口"
+    },
+    {
+      "shot": "sticker_close",
+      "hold": 1.0,
+      "note": "靜 1.0 秒，配樂推高"
+    },
+    {
+      "shot": "neil",
+      "say": "N",
+      "text": "I voted too. Five minutes. It was fine.",
+      "emotion": "neutral",
+      "look": {
+        "N": "center"
+      },
+      "speed": 1.05,
+      "after": 0.1
+    },
+    {
+      "shot": "marcus_bag",
+      "say": "M",
+      "text": "They always say it was fine.",
+      "emotion": "sad",
+      "look": {
+        "M": "left"
+      },
+      "speed": 0.9,
+      "after": 0.1,
+      "mouth_rest": "flat"
+    },
+    {
+      "shot": "end_tag",
+      "hold": 1.5,
+      "note": "三主角 end tag 1.5 秒（render 只接一次，此行會被略過）"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "voices": {
+    "N": {"minimax": "English_ReservedYoungMan", "speed": 1.05},
+    "R": {"minimax": "English_DecentYoungMan", "speed": 1.05},
+    "M": {"minimax": "English_Comedian", "speed": 1.2},
+    "C": {"minimax": "English_FriendlyPerson", "speed": 1.05}
+  },
+  "shots": {
+    "r": {"bg": "bg_sofa_close", "cast": {"R": "russell"}},
+    "n": {"bg": "bg_sofa_close", "cast": {"N": "neil"}},
+    "m": {"bg": "bg_sofa_close", "cast": {"M": "marcus"}},
+    "m_jump": {"bg": "bg_sofa_close", "cast": {"M": "marcus_jump"}},
+    "rn": {"bg": "bg_sofa_close", "cast": {"R": "russell", "N": "neil"}},
+    "c": {"bg": "bg_sofa_close", "cast": {"C": "cop"}}
+  },
+  "rest_mouth": {"R": "smirk", "N": "flat", "M": "grin", "C": "smile"},
+  "beats": [
+    {"shot": "rn", "say": "N", "text": "Russell, you've been on my sofa for three years. Go home.", "emotion": "neutral", "after": 0.03, "look": {"R": "center", "N": "left"}},
+    {"shot": "r", "say": "R", "text": "This is my home. Squatter's rights.", "emotion": "neutral", "after": 0.0, "look": {"R": "right"}},
+    {"shot": "n", "say": "N", "text": "That's not how the law works.", "emotion": "neutral", "after": 0.0, "look": {"N": "left"}},
+    {"shot": "r", "say": "R", "text": "Three years, Neil. It's legally my sofa. Don't sit on it. That's twenty bucks.", "emotion": "neutral", "after": 0.03, "look": {"R": "right"}},
+    {"shot": "m_jump", "say": "M", "text": "YOOOOO! HE OWNS THE SOFA!", "emotion": "happy", "after": 0.0, "look": {"M": "center"}},
+    {"shot": "n", "say": "N", "text": "I'm calling the police.", "emotion": "neutral", "after": 0.15, "look": {"N": "center"}},
+    {"shot": "c", "say": "C", "text": "Sorry, I'm on hold. Go ahead.", "emotion": "happy", "after": 0.0, "look": {"C": "center"}},
+    {"shot": "c", "say": "C", "text": "Did you ever ask him to leave?", "emotion": "neutral", "after": 0.0, "look": {"C": "right"}},
+    {"shot": "n", "say": "N", "text": "Every single day!", "emotion": "angry", "after": 0.0, "look": {"N": "left"}},
+    {"shot": "c", "say": "C", "text": "In writing?", "emotion": "neutral", "after": 0.25, "look": {"C": "right"}},
+    {"shot": "n", "say": "N", "text": "No.", "emotion": "sad", "speed": 0.9, "after": 0.1, "look": {"N": "left"}},
+    {"shot": "c", "say": "C", "text": "Sir, I'm gonna need you to step away from his sofa.", "emotion": "neutral", "after": 0.0, "look": {"C": "right"}},
+    {"shot": "m_jump", "say": "M", "text": "LET'S GOOOO!", "emotion": "happy", "after": 0.0, "look": {"M": "center"}},
+    {"shot": "r", "hold": 0.9, "look": {"R": "right"}},
+    {"shot": "c", "say": "C", "text": "Hold on. This sofa's on my list. It was stolen from a bank.", "emotion": "neutral", "after": 0.0, "look": {"C": "down"}},
+    {"shot": "r", "hold": 1.4, "look": {"R": "center"}, "pupil_scale_to": {"R": 0.55}},
+    {"shot": "r", "say": "R", "text": "That's Neil's sofa.", "emotion": "fearful", "speed": 1.2, "mouth_rest": "small_o", "after": 0.05, "look": {"R": "right"}},
+    {"shot": "n", "say": "N", "text": "Squatter's rights.", "emotion": "happy", "speed": 0.9, "mouth_rest": "smile", "after": 0.0, "look": {"N": "left"}},
+    {"shot": "c", "say": "C", "text": "You're under arrest. As soon as I get authorization.", "emotion": "happy", "after": 0.25, "look": {"C": "center"}, "sfx": "music_start"},
+    {"shot": "r", "hold": 1.0, "look": {"R": "center"}, "look_to": {"R": "right"}, "pupil_scale_to": {"R": 1.0}},
+    {"shot": "r", "say": "R", "text": "Twenty bucks, Neil.", "emotion": "neutral", "after": 0.1, "look": {"R": "right"}},
+    {"shot": "title", "hold": 1.8, "text": "SQUATTER'S RIGHTS", "sfx": "ding"}
+  ]
+}

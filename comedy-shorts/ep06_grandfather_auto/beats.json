@@ -1,0 +1,457 @@
+{
+  "voices": {
+    "N": {
+      "minimax": "English_ReservedYoungMan",
+      "speed": 1.05
+    },
+    "R": {
+      "minimax": "English_DecentYoungMan",
+      "speed": 1.05
+    },
+    "M": {
+      "minimax": "English_Comedian",
+      "speed": 1.2
+    }
+  },
+  "shots": {
+    "game_street_a": {
+      "fullscreen": true,
+      "bg": "game_street_a"
+    },
+    "game_street_b": {
+      "fullscreen": true,
+      "bg": "game_street_b"
+    },
+    "game_trailer": {
+      "fullscreen": true,
+      "bg": "game_trailer"
+    },
+    "game_bank": {
+      "fullscreen": true,
+      "bg": "game_bank"
+    },
+    "game_pharmacy": {
+      "fullscreen": true,
+      "bg": "game_pharmacy"
+    },
+    "cover": {
+      "fullscreen": true,
+      "bg": "cover",
+      "title": "GRAND FATHER AUTO",
+      "big_mark": "VI"
+    },
+    "neil_box": {
+      "cast": {
+        "N": "neil_box"
+      }
+    },
+    "marcus_box": {
+      "cast": {
+        "M": "marcus_box"
+      }
+    },
+    "marcus_jump": {
+      "cast": {
+        "M": "marcus_jump"
+      }
+    },
+    "russell_s1": {
+      "cast": {
+        "R": "russell_s1"
+      }
+    },
+    "russell_s2": {
+      "cast": {
+        "R": "russell_s2"
+      }
+    },
+    "russell_s3": {
+      "cast": {
+        "R": "russell_s3"
+      }
+    },
+    "russell_s4": {
+      "cast": {
+        "R": "russell_s4"
+      }
+    },
+    "marcus": {
+      "cast": {
+        "M": "marcus"
+      }
+    }
+  },
+  "rest_mouth": {
+    "R": "smirk",
+    "N": "flat",
+    "M": "grin"
+  },
+  "beats": [
+    {
+      "shot": "game_street_a",
+      "hold": 1.2,
+      "shot_at": [
+        [
+          0.30,
+          "game_street_b"
+        ]
+      ],
+      "sfx": "hit",
+      "sfx_at": 0.30,
+      "overlay": "broken_hip",
+      "overlay_from": 0.70,
+      "note": "v2：0–0.30 街頭 A 彩色；0.30 打擊聲＋換 B（彩色）；0.70 起黑白＋BROKEN HIP"
+    },
+    {
+      "shot": "game_street_b",
+      "say": "M",
+      "text": "TOLD you! GTA Six!",
+      "emotion": "happy",
+      "look": {
+        "M": "center"
+      },
+      "speed": 1.35,
+      "overlay": "broken_hip",
+      "after": 0.1,
+      "tts_text": "TOLD you, GTA Six!"
+    },
+    {
+      "shot": "russell_s1",
+      "say": "R",
+      "text": "Why is everyone eighty?",
+      "emotion": "neutral",
+      "look": {
+        "R": "center"
+      },
+      "after": 0.1
+    },
+    {
+      "shot": "marcus_box",
+      "say": "M",
+      "text": "NEXT GEN, BABY!",
+      "emotion": "happy",
+      "look": {
+        "M": "center"
+      },
+      "after": 0.0
+    },
+    {
+      "shot": "cover",
+      "hold": 0.7,
+      "note": "封面特寫，靜位"
+    },
+    {
+      "shot": "neil_box",
+      "say": "N",
+      "text": "This says Grand Father Auto.",
+      "emotion": "neutral",
+      "look": {
+        "N": "center"
+      },
+      "after": 0.1
+    },
+    {
+      "shot": "marcus",
+      "say": "M",
+      "text": "G! T! A!",
+      "emotion": "neutral",
+      "look": {
+        "M": "center"
+      },
+      "speed": 1.35,
+      "after": 0.1,
+      "tts_text": "G. T. A."
+    },
+    {
+      "shot": "neil_box",
+      "say": "N",
+      "text": "That's an F.",
+      "emotion": "neutral",
+      "look": {
+        "N": "center"
+      },
+      "after": 0.1
+    },
+    {
+      "shot": "marcus",
+      "say": "M",
+      "text": "That's a fancy T.",
+      "emotion": "neutral",
+      "look": {
+        "M": "center"
+      },
+      "after": 0.1
+    },
+    {
+      "shot": "russell_s1",
+      "say": "R",
+      "text": "Where did you buy this?",
+      "emotion": "neutral",
+      "look": {
+        "R": "center"
+      },
+      "after": 0.1
+    },
+    {
+      "shot": "marcus",
+      "say": "M",
+      "text": "A guy with a van! He got it early!",
+      "emotion": "happy",
+      "look": {
+        "M": "center"
+      },
+      "after": 0.1
+    },
+    {
+      "shot": "russell_s2",
+      "say": "R",
+      "text": "Where's Lucia? The girl from the trailer.",
+      "emotion": "neutral",
+      "look": {
+        "R": "center"
+      },
+      "after": 0.1
+    },
+    {
+      "shot": "game_trailer",
+      "say": "M",
+      "text": "Lucille! From the trailer! Lot nine!",
+      "emotion": "happy",
+      "look": {
+        "M": "center"
+      },
+      "speed": 1.35,
+      "after": 0.1,
+      "tts_text": "Lucille from the trailer, lot nine!"
+    },
+    {
+      "shot": "russell_s2",
+      "say": "R",
+      "text": "What's the heist?",
+      "emotion": "neutral",
+      "look": {
+        "R": "center"
+      },
+      "after": 0.1
+    },
+    {
+      "shot": "game_bank",
+      "say": "M",
+      "text": "He goes to the bank.",
+      "emotion": "neutral",
+      "look": {
+        "M": "center"
+      },
+      "after": 0.1
+    },
+    {
+      "shot": "russell_s2",
+      "say": "R",
+      "text": "And robs it.",
+      "emotion": "neutral",
+      "look": {
+        "R": "center"
+      },
+      "after": 0.1
+    },
+    {
+      "shot": "game_bank",
+      "say": "M",
+      "text": "He updates his passbook.",
+      "emotion": "neutral",
+      "look": {
+        "M": "center"
+      },
+      "after": 0.0
+    },
+    {
+      "shot": "game_bank",
+      "hold": 0.7,
+      "sfx": "mission_pass",
+      "overlay": "mission_passed",
+      "note": "MISSION PASSED +$0.12"
+    },
+    {
+      "shot": "marcus",
+      "say": "M",
+      "text": "Neil. What game is this?",
+      "emotion": "happy",
+      "look": {
+        "M": "center"
+      },
+      "speed": 1.35,
+      "after": 0.0
+    },
+    {
+      "shot": "marcus",
+      "hold": 1.0,
+      "push": true,
+      "look": {
+        "M": "center"
+      },
+      "note": "推近到胸口以上，一直笑"
+    },
+    {
+      "shot": "neil_box",
+      "say": "N",
+      "text": "...Grand Father Auto.",
+      "emotion": "sad",
+      "look": {
+        "N": "center"
+      },
+      "after": 0.1
+    },
+    {
+      "shot": "marcus_jump",
+      "say": "M",
+      "text": "THANK you.",
+      "emotion": "happy",
+      "look": {
+        "M": "center"
+      },
+      "after": 0.1
+    },
+    {
+      "shot": "russell_s3",
+      "say": "R",
+      "text": "Eighty $#@! dollars! You know what eighty dollars got you in my day?",
+      "emotion": "angry",
+      "look": {
+        "R": "center"
+      },
+      "note": "原句 Eighty [嗶] dollars!；v2：一張字幕卡由 Eighty 出到句尾（cap_cont 承接）",
+      "after": 0.0
+    },
+    {
+      "shot": "russell_s3",
+      "hold": 0.35,
+      "sfx": "bleep",
+      "cap_cont": true
+    },
+    {
+      "shot": "russell_s3",
+      "say": "R",
+      "emotion": "angry",
+      "look": {
+        "R": "center"
+      },
+      "cap_cont": true,
+      "after": 0.1
+    },
+    {
+      "shot": "russell_s4",
+      "say": "R",
+      "text": "And it's freezing in here. Who touched my thermostat?",
+      "emotion": "angry",
+      "look": {
+        "R": "center"
+      },
+      "speed": 1.12,
+      "after": 0.0
+    },
+    {
+      "shot": "neil_box",
+      "hold": 0.9,
+      "look": {
+        "N": "left"
+      },
+      "note": "只郁眼珠望向畫面左邊（唔係右邊）"
+    },
+    {
+      "shot": "marcus",
+      "hold": 0.4,
+      "look": {
+        "M": "left"
+      },
+      "note": "眼珠轉去畫面左邊（唔係右邊）"
+    },
+    {
+      "shot": "russell_s4",
+      "say": "R",
+      "text": "What?",
+      "emotion": "neutral",
+      "look": {
+        "R": "center"
+      },
+      "after": 0.1
+    },
+    {
+      "shot": "marcus",
+      "say": "M",
+      "text": "Russell. What game is this?",
+      "emotion": "happy",
+      "look": {
+        "M": "center"
+      },
+      "after": 0.1
+    },
+    {
+      "shot": "russell_s4",
+      "say": "R",
+      "text": "Grand Father Auto. Shh. I'm at the pharmacy.",
+      "emotion": "neutral",
+      "look": {
+        "R": "center"
+      },
+      "speed": 1.15,
+      "after": 0.1,
+      "shot_at": [
+        [
+          2.15,
+          "game_pharmacy"
+        ]
+      ]
+    },
+    {
+      "shot": "marcus_jump",
+      "say": "M",
+      "text": "THANK you!",
+      "emotion": "happy",
+      "look": {
+        "M": "center"
+      },
+      "after": 0.1
+    },
+    {
+      "shot": "neil_box",
+      "say": "N",
+      "text": "Real one's out on the nineteenth.",
+      "emotion": "neutral",
+      "look": {
+        "N": "center"
+      },
+      "after": 0.1
+    },
+    {
+      "shot": "russell_s4",
+      "say": "R",
+      "text": "Too violent.",
+      "emotion": "neutral",
+      "look": {
+        "R": "center"
+      },
+      "after": 0.0
+    },
+    {
+      "shot": "game_street_a",
+      "hold": 1.2,
+      "shot_at": [
+        [
+          0.30,
+          "game_street_b"
+        ]
+      ],
+      "sfx": "hit",
+      "sfx_at": 0.30,
+      "overlay": "broken_hip",
+      "overlay_from": 0.70,
+      "note": "循環：同開頭（v2 次序：0.30 打擊＋換 B，0.70 黑白＋BROKEN HIP）"
+    },
+    {
+      "shot": "russell_s4",
+      "hold": 0.6,
+      "nod": true,
+      "note": "滿意咁點頭"
+    }
+  ]
+}
